@@ -1,6 +1,6 @@
 {
-    "name": "cool_bookkeeping",
-    "short_name": "cool_bookkeeping",
+    "name": "酷记",
+    "short_name": "酷记",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

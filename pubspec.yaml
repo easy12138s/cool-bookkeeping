@@ -43,7 +43,8 @@ dependencies:
   dio: ^5.4.0
 
   # Speech Recognition
-  speech_to_text: ^6.5.1
+  speech_to_text: ^7.0.0
+  speech_to_text_platform_interface: ^2.0.0
 
   # Database
   sqflite: ^2.3.0
