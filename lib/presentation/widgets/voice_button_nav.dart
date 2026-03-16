@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/permission_utils.dart';
 import '../providers/voice_bookkeeping_provider.dart';
 import 'top_notification.dart';
 
@@ -39,6 +40,13 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
   void _startRecording() async {
     if (_isStarting) return;
     _isStarting = true;
+
+    // 请求麦克风权限
+    final hasPermission = await PermissionUtils.handleMicrophonePermission(context);
+    if (!hasPermission) {
+      _isStarting = false;
+      return;
+    }
 
     // 清除之前的错误
     ref.read(voiceErrorMessageProvider.notifier).state = null;
