@@ -87,8 +87,6 @@ class MonthSelector extends StatelessWidget {
   /// 显示月份选择器
   Future<void> _showMonthPicker(BuildContext context) async {
     final now = DateTime.now();
-    final initialYear = selectedMonth.year;
-    final initialMonth = selectedMonth.month;
 
     showDialog(
       context: context,

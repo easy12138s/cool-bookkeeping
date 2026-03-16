@@ -19,8 +19,6 @@ class VoiceButtonNav extends ConsumerStatefulWidget {
 class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
     with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
-  Timer? _durationTimer;
-  int _recordingDuration = 0;
   bool _isStarting = false;
 
   @override
@@ -35,7 +33,6 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
   @override
   void dispose() {
     _pulseController.dispose();
-    _durationTimer?.cancel();
     super.dispose();
   }
 
@@ -51,17 +48,6 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
 
     if (mounted) {
       _pulseController.repeat();
-      _recordingDuration = 0;
-      _durationTimer = Timer.periodic(
-        const Duration(seconds: 1),
-        (timer) {
-          if (mounted) {
-            setState(() {
-              _recordingDuration++;
-            });
-          }
-        },
-      );
     }
 
     _isStarting = false;
@@ -70,7 +56,6 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
   void _stopRecording() {
     _pulseController.stop();
     _pulseController.reset();
-    _durationTimer?.cancel();
 
     final controller = ref.read(voiceBookkeepingControllerProvider);
     controller.stopRecording();
@@ -83,7 +68,6 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
   void _cancelRecording() {
     _pulseController.stop();
     _pulseController.reset();
-    _durationTimer?.cancel();
 
     final controller = ref.read(voiceBookkeepingControllerProvider);
     controller.cancelRecording();
@@ -92,7 +76,6 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
   @override
   Widget build(BuildContext context) {
     final speechState = ref.watch(speechStateProvider);
-    final errorMessage = ref.watch(voiceErrorMessageProvider);
     final isRecording = speechState == SpeechState.listening;
     final isProcessing = speechState == SpeechState.processing;
 

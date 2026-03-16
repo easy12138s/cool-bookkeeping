@@ -116,7 +116,6 @@ class _VoiceButtonState extends ConsumerState<VoiceButton>
   @override
   Widget build(BuildContext context) {
     final speechState = ref.watch(speechStateProvider);
-    final errorMessage = ref.watch(voiceErrorMessageProvider);
     final isRecording = speechState == SpeechState.listening;
     final isProcessing = speechState == SpeechState.processing;
 
