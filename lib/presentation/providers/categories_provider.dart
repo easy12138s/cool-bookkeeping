@@ -93,6 +93,65 @@ class CategoriesNotifier extends StateNotifier<CategoriesState> {
       return [];
     }
   }
+
+  /// 根据名称和类型查找分类ID
+  /// 用于语音记账时将分类名称转换为分类ID
+  Future<String?> findCategoryIdByName(String categoryName, String type) async {
+    final categories = state.valueOrNull ?? [];
+    final targetType = type == '收入' ? 1 : 0;
+    
+    // 精确匹配
+    var category = categories.firstWhere(
+      (c) => c.name == categoryName && c.type == targetType,
+      orElse: () => CategoryModel(
+        id: '',
+        name: '',
+        icon: 'category',
+        type: 0,
+        isPreset: false,
+        isEnabled: false,
+        sortOrder: 0,
+      ),
+    );
+    
+    if (category.id.isNotEmpty) {
+      return category.id;
+    }
+    
+    // 模糊匹配（包含关键词）
+    category = categories.firstWhere(
+      (c) => c.name.contains(categoryName) && c.type == targetType,
+      orElse: () => CategoryModel(
+        id: '',
+        name: '',
+        icon: 'category',
+        type: 0,
+        isPreset: false,
+        isEnabled: false,
+        sortOrder: 0,
+      ),
+    );
+    
+    if (category.id.isNotEmpty) {
+      return category.id;
+    }
+    
+    // 返回"其他"分类的ID
+    final otherCategory = categories.firstWhere(
+      (c) => c.name == '其他' && c.type == targetType,
+      orElse: () => CategoryModel(
+        id: '',
+        name: '',
+        icon: 'category',
+        type: 0,
+        isPreset: false,
+        isEnabled: false,
+        sortOrder: 0,
+      ),
+    );
+    
+    return otherCategory.id.isNotEmpty ? otherCategory.id : null;
+  }
 }
 
 /// Categories Provider

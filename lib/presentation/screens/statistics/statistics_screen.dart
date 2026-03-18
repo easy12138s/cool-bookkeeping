@@ -22,6 +22,8 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
   late TabController _tabController;
   int _timeRangeIndex = 1; // 0=周, 1=月, 2=年
   final List<String> _timeRanges = ['周', '月', '年'];
+  int _chartTypeIndex = 0; // 0=饼图, 1=柱状图
+  final List<String> _chartTypes = ['饼图', '柱状图'];
 
   @override
   void initState() {
@@ -84,23 +86,47 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
   /// 构建时间范围选择器
   Widget _buildTimeRangeSelector() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          SegmentedButton<int>(
-            segments: _timeRanges.asMap().entries.map((entry) {
-              return ButtonSegment(
-                value: entry.key,
-                label: Text(entry.value),
-              );
-            }).toList(),
-            selected: {_timeRangeIndex},
-            onSelectionChanged: (Set<int> newSelection) {
-              setState(() {
-                _timeRangeIndex = newSelection.first;
-              });
-            },
+          // 图表类型切换
+          Expanded(
+            child: SegmentedButton<int>(
+              segments: _chartTypes.asMap().entries.map((entry) {
+                return ButtonSegment(
+                  value: entry.key,
+                  label: Text(entry.value),
+                  icon: Icon(
+                    entry.key == 0 ? Icons.pie_chart : Icons.bar_chart,
+                    size: 16,
+                  ),
+                );
+              }).toList(),
+              selected: {_chartTypeIndex},
+              onSelectionChanged: (Set<int> newSelection) {
+                setState(() {
+                  _chartTypeIndex = newSelection.first;
+                });
+              },
+            ),
+          ),
+          const SizedBox(width: 12),
+          // 时间范围切换
+          Expanded(
+            child: SegmentedButton<int>(
+              segments: _timeRanges.asMap().entries.map((entry) {
+                return ButtonSegment(
+                  value: entry.key,
+                  label: Text(entry.value),
+                );
+              }).toList(),
+              selected: {_timeRangeIndex},
+              onSelectionChanged: (Set<int> newSelection) {
+                setState(() {
+                  _timeRangeIndex = newSelection.first;
+                });
+              },
+            ),
           ),
         ],
       ),
@@ -140,8 +166,11 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
           // 总金额卡片
           _buildTotalCard(totalAmount, type),
           const SizedBox(height: 24),
-          // 饼图
-          _buildPieChart(categoryStats),
+          // 根据图表类型显示
+          if (_chartTypeIndex == 0)
+            _buildPieChart(categoryStats)
+          else
+            _buildBarChart(categoryStats, type),
           const SizedBox(height: 24),
           // 类别列表
           _buildCategoryList(categoryStats, totalAmount),
@@ -298,32 +327,169 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
       Colors.cyan,
     ];
 
-    return SizedBox(
-      height: 200,
-      child: PieChart(
-        PieChartData(
-          sectionsSpace: 2,
-          centerSpaceRadius: 40,
-          sections: stats.asMap().entries.map((entry) {
-            final index = entry.key;
-            final stat = entry.value;
-            final color = colors[index % colors.length];
-
-            return PieChartSectionData(
-              color: color,
-              value: stat.amount,
-              title: '${(stat.percentage * 100).toStringAsFixed(1)}%',
-              radius: 60,
-              titleStyle: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+    return Column(
+      children: [
+        Text(
+          '分类占比',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
               ),
-            );
-          }).toList(),
         ),
-      ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 200,
+          child: PieChart(
+            PieChartData(
+              sectionsSpace: 2,
+              centerSpaceRadius: 40,
+              sections: stats.asMap().entries.map((entry) {
+                final index = entry.key;
+                final stat = entry.value;
+                final color = colors[index % colors.length];
+
+                return PieChartSectionData(
+                  color: color,
+                  value: stat.amount,
+                  title: '${(stat.percentage * 100).toStringAsFixed(1)}%',
+                  radius: 60,
+                  titleStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+      ],
     );
+  }
+
+  /// 构建柱状图
+  Widget _buildBarChart(List<CategoryStat> stats, int type) {
+    if (stats.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final color = type == 0 ? AppColors.expenseColor : AppColors.incomeColor;
+    final displayStats = stats.take(10).toList();
+    final maxAmount = displayStats.map((s) => s.amount).reduce((a, b) => a > b ? a : b);
+
+    return Column(
+      children: [
+        Text(
+          'Top 10 分类',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 220,
+          child: BarChart(
+            BarChartData(
+              alignment: BarChartAlignment.spaceAround,
+              maxY: maxAmount * 1.2,
+              barTouchData: BarTouchData(
+                enabled: true,
+                touchTooltipData: BarTouchTooltipData(
+                  tooltipBgColor: Colors.black87,
+                  tooltipPadding: const EdgeInsets.all(8),
+                  getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                    final stat = displayStats[group.x.toInt()];
+                    return BarTooltipItem(
+                      '${stat.category.name}\n¥${stat.amount.toStringAsFixed(2)}',
+                      const TextStyle(color: Colors.white, fontSize: 12),
+                    );
+                  },
+                ),
+              ),
+              titlesData: FlTitlesData(
+                show: true,
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    getTitlesWidget: (value, meta) {
+                      final index = value.toInt();
+                      if (index >= 0 && index < displayStats.length) {
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Icon(
+                            _getIconData(displayStats[index].category.icon),
+                            size: 16,
+                            color: AppColors.textSecondary,
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                    reservedSize: 32,
+                  ),
+                ),
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 50,
+                    getTitlesWidget: (value, meta) {
+                      return Text(
+                        _formatAmount(value),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: AppColors.textSecondary,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              ),
+              gridData: FlGridData(
+                show: true,
+                drawVerticalLine: false,
+                horizontalInterval: maxAmount / 4,
+                getDrawingHorizontalLine: (value) {
+                  return FlLine(
+                    color: AppColors.divider,
+                    strokeWidth: 1,
+                  );
+                },
+              ),
+              borderData: FlBorderData(show: false),
+              barGroups: displayStats.asMap().entries.map((entry) {
+                final index = entry.key;
+                final stat = entry.value;
+                return BarChartGroupData(
+                  x: index,
+                  barRods: [
+                    BarChartRodData(
+                      toY: stat.amount,
+                      color: color,
+                      width: 20,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(4),
+                        topRight: Radius.circular(4),
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 格式化金额显示
+  String _formatAmount(double value) {
+    if (value >= 10000) {
+      return '${(value / 10000).toStringAsFixed(1)}w';
+    } else if (value >= 1000) {
+      return '${(value / 1000).toStringAsFixed(1)}k';
+    }
+    return value.toStringAsFixed(0);
   }
 
   /// 构建类别列表

@@ -74,6 +74,7 @@ class LlmService {
 
     final apiKey = await _preferences.getApiKey();
     final apiBaseUrl = await _preferences.getApiBaseUrl();
+    final modelName = await _preferences.getModelName();
 
     final prompt = _buildBatchPrompt(
       userInput: userInput,
@@ -83,9 +84,9 @@ class LlmService {
 
     try {
       final response = await _dio.post(
-        '$apiBaseUrl/v1/chat/completions',
+        '$apiBaseUrl/chat/completions',
         data: {
-          'model': 'gpt-3.5-turbo',
+          'model': modelName,
           'messages': [
             {'role': 'system', 'content': _systemPrompt},
             {'role': 'user', 'content': prompt},

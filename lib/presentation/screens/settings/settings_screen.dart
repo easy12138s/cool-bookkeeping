@@ -25,6 +25,7 @@ class SettingsScreen extends ConsumerWidget {
           _buildSectionHeader(context, 'API 配置'),
           _buildApiKeyTile(context, ref, settings),
           _buildApiBaseUrlTile(context, ref, settings),
+          _buildModelNameTile(context, ref, settings),
           const Divider(),
 
           // 记账设置
@@ -100,6 +101,25 @@ class SettingsScreen extends ConsumerWidget {
       ),
       trailing: const Icon(Icons.chevron_right),
       onTap: () => _showApiBaseUrlDialog(context, ref, settings),
+    );
+  }
+
+  /// 构建模型名称设置项
+  Widget _buildModelNameTile(
+    BuildContext context,
+    WidgetRef ref,
+    SettingsState settings,
+  ) {
+    return ListTile(
+      leading: const Icon(Icons.model_training),
+      title: const Text('模型名称'),
+      subtitle: Text(
+        settings.modelName ?? 'qwen3.5-plus',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => _showModelNameDialog(context, ref, settings),
     );
   }
 
@@ -233,6 +253,48 @@ class SettingsScreen extends ConsumerWidget {
               await ref
                   .read(settingsProvider.notifier)
                   .setApiBaseUrl(value.isEmpty ? null : value);
+              if (context.mounted) {
+                Navigator.of(context).pop();
+              }
+            },
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 显示模型名称对话框
+  void _showModelNameDialog(
+    BuildContext context,
+    WidgetRef ref,
+    SettingsState settings,
+  ) {
+    final controller =
+        TextEditingController(text: settings.modelName ?? 'qwen3.5-plus');
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('设置模型名称'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: '模型名称',
+            hintText: 'qwen3.5-plus',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final value = controller.text.trim();
+              await ref
+                  .read(settingsProvider.notifier)
+                  .setModelName(value.isEmpty ? 'qwen3.5-plus' : value);
               if (context.mounted) {
                 Navigator.of(context).pop();
               }

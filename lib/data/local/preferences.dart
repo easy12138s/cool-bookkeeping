@@ -4,8 +4,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 class _PreferenceKeys {
   static const String apiKey = 'api_key';
   static const String apiBaseUrl = 'api_base_url';
+  static const String modelName = 'model_name';
   static const String autoSaveEnabled = 'auto_save_enabled';
   static const String firstLaunch = 'first_launch';
+}
+
+/// 默认模型名称
+class _DefaultConfig {
+  static const String modelName = 'qwen3.5-plus';
 }
 
 /// 本地偏好设置服务
@@ -40,6 +46,20 @@ class PreferencesService {
       await _prefs.remove(_PreferenceKeys.apiBaseUrl);
     } else {
       await _prefs.setString(_PreferenceKeys.apiBaseUrl, value);
+    }
+  }
+
+  /// 获取模型名称
+  Future<String> getModelName() async {
+    return _prefs.getString(_PreferenceKeys.modelName) ?? _DefaultConfig.modelName;
+  }
+
+  /// 设置模型名称
+  Future<void> setModelName(String? value) async {
+    if (value == null) {
+      await _prefs.remove(_PreferenceKeys.modelName);
+    } else {
+      await _prefs.setString(_PreferenceKeys.modelName, value);
     }
   }
 

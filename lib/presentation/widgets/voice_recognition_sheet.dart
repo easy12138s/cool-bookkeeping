@@ -17,11 +17,18 @@ class VoiceRecognitionSheet extends ConsumerWidget {
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x1A000000),
+            blurRadius: 20,
+            offset: Offset(0, -4),
+          ),
+        ],
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -34,11 +41,11 @@ class VoiceRecognitionSheet extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
 
-              // 状态图标
+              // 状态图标（带动画效果）
               _buildStatusIcon(speechState),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
 
               // 状态标题
               _buildStatusTitle(speechState),
@@ -46,7 +53,7 @@ class VoiceRecognitionSheet extends ConsumerWidget {
 
               // 状态描述
               _buildStatusDescription(speechState),
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
 
               // 识别内容显示
               if (recognizedText.isNotEmpty && speechState == SpeechState.listening)
@@ -55,20 +62,13 @@ class VoiceRecognitionSheet extends ConsumerWidget {
               if (speechState == SpeechState.processing && recognizedText.isNotEmpty)
                 _buildAnalyzingView(recognizedText),
 
-              const SizedBox(height: 16),
+              if (speechState == SpeechState.error)
+                _buildErrorView(),
 
-              // 提示文字
-              Text(
-                speechState == SpeechState.listening
-                    ? '松手结束录音'
-                    : speechState == SpeechState.processing
-                        ? '正在处理中...'
-                        : '',
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                ),
-              ),
+              const SizedBox(height: 24),
+
+              // 底部提示
+              _buildBottomHint(speechState),
             ],
           ),
         ),
@@ -80,47 +80,46 @@ class VoiceRecognitionSheet extends ConsumerWidget {
   Widget _buildStatusIcon(SpeechState state) {
     switch (state) {
       case SpeechState.listening:
-        return Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            color: AppColors.brandPrimary.withValues(alpha: 0.1),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(
-            Icons.mic,
-            size: 40,
-            color: AppColors.brandPrimary,
-          ),
-        );
+        return _buildAnimatedMicIcon();
       case SpeechState.processing:
         return Container(
-          width: 80,
-          height: 80,
+          width: 88,
+          height: 88,
           decoration: BoxDecoration(
-            color: AppColors.brandSecondary.withValues(alpha: 0.1),
+            gradient: const LinearGradient(
+              colors: [AppColors.brandPrimary, AppColors.brandLight],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
             shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.brandPrimary.withValues(alpha: 0.3),
+                blurRadius: 20,
+                spreadRadius: 4,
+              ),
+            ],
           ),
           child: const SizedBox(
-            width: 40,
-            height: 40,
+            width: 36,
+            height: 36,
             child: CircularProgressIndicator(
               strokeWidth: 3,
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.brandPrimary),
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
             ),
           ),
         );
       case SpeechState.error:
         return Container(
-          width: 80,
-          height: 80,
+          width: 88,
+          height: 88,
           decoration: BoxDecoration(
             color: AppColors.error.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
           child: const Icon(
             Icons.error_outline,
-            size: 40,
+            size: 44,
             color: AppColors.error,
           ),
         );
@@ -129,29 +128,62 @@ class VoiceRecognitionSheet extends ConsumerWidget {
     }
   }
 
+  /// 构建带动画的麦克风图标
+  Widget _buildAnimatedMicIcon() {
+    return Container(
+      width: 88,
+      height: 88,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppColors.brandPrimary, AppColors.brandLight],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.brandPrimary.withValues(alpha: 0.4),
+            blurRadius: 24,
+            spreadRadius: 8,
+          ),
+        ],
+      ),
+      child: const Icon(
+        Icons.mic,
+        size: 40,
+        color: Colors.white,
+      ),
+    );
+  }
+
   /// 构建状态标题
   Widget _buildStatusTitle(SpeechState state) {
     String title;
+    Color color;
     switch (state) {
       case SpeechState.listening:
-        title = '正在聆听';
+        title = '正在听您说...';
+        color = AppColors.brandPrimary;
         break;
       case SpeechState.processing:
-        title = '智能分析中';
+        title = '正在分析';
+        color = AppColors.brandPrimary;
         break;
       case SpeechState.error:
-        title = '识别出错';
+        title = '识别失败';
+        color = AppColors.error;
         break;
       default:
         title = '';
+        color = AppColors.textPrimary;
     }
 
     return Text(
       title,
-      style: const TextStyle(
-        fontSize: 20,
+      style: TextStyle(
+        fontSize: 22,
         fontWeight: FontWeight.w600,
-        color: AppColors.textPrimary,
+        color: color,
       ),
     );
   }
@@ -161,13 +193,13 @@ class VoiceRecognitionSheet extends ConsumerWidget {
     String description;
     switch (state) {
       case SpeechState.listening:
-        description = '请说出您的记账内容';
+        description = '请说出消费内容，例如："午餐花了25元"';
         break;
       case SpeechState.processing:
-        description = '正在理解您的语音内容';
+        description = '正在理解您的语音并智能分类';
         break;
       case SpeechState.error:
-        description = '请重试或手动输入';
+        description = '抱歉没听清，请重试或手动记账';
         break;
       default:
         description = '';
@@ -178,7 +210,9 @@ class VoiceRecognitionSheet extends ConsumerWidget {
       style: const TextStyle(
         fontSize: 14,
         color: AppColors.textSecondary,
+        height: 1.5,
       ),
+      textAlign: TextAlign.center,
     );
   }
 
@@ -186,30 +220,44 @@ class VoiceRecognitionSheet extends ConsumerWidget {
   Widget _buildRecognizedText(String text) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.divider),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            '识别内容',
-            style: TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w500,
-            ),
+          Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: AppColors.brandPrimary,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                '识别到的内容',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Text(
             text,
             style: const TextStyle(
-              fontSize: 16,
+              fontSize: 18,
               color: AppColors.textPrimary,
               height: 1.5,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -221,10 +269,17 @@ class VoiceRecognitionSheet extends ConsumerWidget {
   Widget _buildAnalyzingView(String text) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.brandPrimary.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(
+          colors: [
+            AppColors.brandPrimary.withValues(alpha: 0.08),
+            AppColors.brandLight.withValues(alpha: 0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.brandPrimary.withValues(alpha: 0.2)),
       ),
       child: Column(
@@ -232,63 +287,159 @@ class VoiceRecognitionSheet extends ConsumerWidget {
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.psychology,
-                size: 16,
-                color: AppColors.brandPrimary,
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppColors.brandPrimary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.psychology,
+                  size: 18,
+                  color: AppColors.brandPrimary,
+                ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 10),
               const Text(
                 '已识别内容',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 13,
                   color: AppColors.brandPrimary,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const Spacer(),
               Container(
                 width: 8,
                 height: 8,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: AppColors.brandPrimary,
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Text(
             text,
             style: const TextStyle(
-              fontSize: 16,
+              fontSize: 18,
               color: AppColors.textPrimary,
               height: 1.5,
+              fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 12),
-          const Row(
+          const SizedBox(height: 16),
+          Row(
             children: [
               SizedBox(
-                width: 16,
-                height: 16,
+                width: 18,
+                height: 18,
                 child: CircularProgressIndicator(
-                  strokeWidth: 2,
+                  strokeWidth: 2.5,
                   valueColor: AlwaysStoppedAnimation<Color>(AppColors.brandPrimary),
                 ),
               ),
-              SizedBox(width: 8),
-              Text(
-                '正在智能分析...',
+              const SizedBox(width: 10),
+              const Text(
+                'AI 正在智能分析分类...',
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 14,
                   color: AppColors.brandPrimary,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
           ),
         ],
       ),
+    );
+  }
+
+  /// 构建错误视图
+  Widget _buildErrorView() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.error.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.mic_off,
+            size: 40,
+            color: AppColors.error,
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            '未能识别语音内容',
+            style: TextStyle(
+              fontSize: 16,
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '建议：说话更清晰、靠近麦克风、减少环境噪音',
+            style: TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary.withValues(alpha: 0.8),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 构建底部提示
+  Widget _buildBottomHint(SpeechState state) {
+    String hint;
+    IconData icon;
+    Color color;
+
+    switch (state) {
+      case SpeechState.listening:
+        hint = '松开手指结束录音';
+        icon = Icons.touch_app;
+        color = AppColors.textSecondary;
+        break;
+      case SpeechState.processing:
+        hint = '请稍候，马上就好';
+        icon = Icons.hourglass_empty;
+        color = AppColors.brandPrimary;
+        break;
+      case SpeechState.error:
+        hint = '长按话筒重试';
+        icon = Icons.replay;
+        color = AppColors.error;
+        break;
+      default:
+        return const SizedBox.shrink();
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          icon,
+          size: 16,
+          color: color,
+        ),
+        const SizedBox(width: 6),
+        Text(
+          hint,
+          style: TextStyle(
+            fontSize: 14,
+            color: color,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 }

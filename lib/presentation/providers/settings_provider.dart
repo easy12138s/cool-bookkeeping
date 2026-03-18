@@ -17,6 +17,9 @@ class SettingsState with _$SettingsState {
     /// API 基础 URL
     String? apiBaseUrl,
 
+    /// 模型名称
+    String? modelName,
+
     /// 自动保存是否启用
     @Default(false) bool autoSaveEnabled,
 
@@ -40,12 +43,14 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     try {
       final apiKey = await _preferences.getApiKey();
       final apiBaseUrl = await _preferences.getApiBaseUrl();
+      final modelName = await _preferences.getModelName();
       final autoSaveEnabled = await _preferences.getAutoSaveEnabled();
       final isFirstLaunch = await _preferences.isFirstLaunch();
 
       state = SettingsState(
         apiKey: apiKey,
         apiBaseUrl: apiBaseUrl,
+        modelName: modelName,
         autoSaveEnabled: autoSaveEnabled,
         isFirstLaunch: isFirstLaunch,
       );
@@ -67,6 +72,13 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   Future<void> setApiBaseUrl(String? value) async {
     await _preferences.setApiBaseUrl(value);
     state = state.copyWith(apiBaseUrl: value);
+  }
+
+  /// 设置模型名称
+  /// [value] 模型名称
+  Future<void> setModelName(String value) async {
+    await _preferences.setModelName(value);
+    state = state.copyWith(modelName: value);
   }
 
   /// 设置自动保存状态

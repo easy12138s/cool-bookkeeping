@@ -23,6 +23,9 @@ mixin _$SettingsState {
   /// API 基础 URL
   String? get apiBaseUrl => throw _privateConstructorUsedError;
 
+  /// 模型名称
+  String? get modelName => throw _privateConstructorUsedError;
+
   /// 自动保存是否启用
   bool get autoSaveEnabled => throw _privateConstructorUsedError;
 
@@ -46,6 +49,7 @@ abstract class $SettingsStateCopyWith<$Res> {
   $Res call({
     String? apiKey,
     String? apiBaseUrl,
+    String? modelName,
     bool autoSaveEnabled,
     bool isFirstLaunch,
   });
@@ -68,6 +72,7 @@ class _$SettingsStateCopyWithImpl<$Res, $Val extends SettingsState>
   $Res call({
     Object? apiKey = freezed,
     Object? apiBaseUrl = freezed,
+    Object? modelName = freezed,
     Object? autoSaveEnabled = null,
     Object? isFirstLaunch = null,
   }) {
@@ -80,6 +85,10 @@ class _$SettingsStateCopyWithImpl<$Res, $Val extends SettingsState>
             apiBaseUrl: freezed == apiBaseUrl
                 ? _value.apiBaseUrl
                 : apiBaseUrl // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            modelName: freezed == modelName
+                ? _value.modelName
+                : modelName // ignore: cast_nullable_to_non_nullable
                       as String?,
             autoSaveEnabled: null == autoSaveEnabled
                 ? _value.autoSaveEnabled
@@ -107,6 +116,7 @@ abstract class _$$SettingsStateImplCopyWith<$Res>
   $Res call({
     String? apiKey,
     String? apiBaseUrl,
+    String? modelName,
     bool autoSaveEnabled,
     bool isFirstLaunch,
   });
@@ -128,6 +138,7 @@ class __$$SettingsStateImplCopyWithImpl<$Res>
   $Res call({
     Object? apiKey = freezed,
     Object? apiBaseUrl = freezed,
+    Object? modelName = freezed,
     Object? autoSaveEnabled = null,
     Object? isFirstLaunch = null,
   }) {
@@ -140,6 +151,10 @@ class __$$SettingsStateImplCopyWithImpl<$Res>
         apiBaseUrl: freezed == apiBaseUrl
             ? _value.apiBaseUrl
             : apiBaseUrl // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        modelName: freezed == modelName
+            ? _value.modelName
+            : modelName // ignore: cast_nullable_to_non_nullable
                   as String?,
         autoSaveEnabled: null == autoSaveEnabled
             ? _value.autoSaveEnabled
@@ -160,6 +175,7 @@ class _$SettingsStateImpl implements _SettingsState {
   const _$SettingsStateImpl({
     this.apiKey,
     this.apiBaseUrl,
+    this.modelName,
     this.autoSaveEnabled = false,
     this.isFirstLaunch = true,
   });
@@ -171,6 +187,10 @@ class _$SettingsStateImpl implements _SettingsState {
   /// API 基础 URL
   @override
   final String? apiBaseUrl;
+
+  /// 模型名称
+  @override
+  final String? modelName;
 
   /// 自动保存是否启用
   @override
@@ -184,7 +204,7 @@ class _$SettingsStateImpl implements _SettingsState {
 
   @override
   String toString() {
-    return 'SettingsState(apiKey: $apiKey, apiBaseUrl: $apiBaseUrl, autoSaveEnabled: $autoSaveEnabled, isFirstLaunch: $isFirstLaunch)';
+    return 'SettingsState(apiKey: $apiKey, apiBaseUrl: $apiBaseUrl, modelName: $modelName, autoSaveEnabled: $autoSaveEnabled, isFirstLaunch: $isFirstLaunch)';
   }
 
   @override
@@ -195,6 +215,8 @@ class _$SettingsStateImpl implements _SettingsState {
             (identical(other.apiKey, apiKey) || other.apiKey == apiKey) &&
             (identical(other.apiBaseUrl, apiBaseUrl) ||
                 other.apiBaseUrl == apiBaseUrl) &&
+            (identical(other.modelName, modelName) ||
+                other.modelName == modelName) &&
             (identical(other.autoSaveEnabled, autoSaveEnabled) ||
                 other.autoSaveEnabled == autoSaveEnabled) &&
             (identical(other.isFirstLaunch, isFirstLaunch) ||
@@ -206,6 +228,7 @@ class _$SettingsStateImpl implements _SettingsState {
     runtimeType,
     apiKey,
     apiBaseUrl,
+    modelName,
     autoSaveEnabled,
     isFirstLaunch,
   );
@@ -223,6 +246,7 @@ abstract class _SettingsState implements SettingsState {
   const factory _SettingsState({
     final String? apiKey,
     final String? apiBaseUrl,
+    final String? modelName,
     final bool autoSaveEnabled,
     final bool isFirstLaunch,
   }) = _$SettingsStateImpl;
@@ -234,6 +258,10 @@ abstract class _SettingsState implements SettingsState {
   /// API 基础 URL
   @override
   String? get apiBaseUrl;
+
+  /// 模型名称
+  @override
+  String? get modelName;
 
   /// 自动保存是否启用
   @override

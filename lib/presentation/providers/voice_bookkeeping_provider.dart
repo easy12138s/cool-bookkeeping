@@ -2,10 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../data/models/parsed_result.dart';
+import '../../data/models/record_model.dart';
 import '../../services/services.dart' as services;
 import 'providers.dart';
+import 'categories_provider.dart';
+import 'records_provider.dart';
 
 /// 语音识别状态
 enum SpeechState {
@@ -266,27 +270,40 @@ class VoiceBookkeepingController {
     final failedRecords = <Map<String, dynamic>>[];
     var successCount = 0;
 
-    // TODO: 实现批量保存逻辑
-    // 这里需要：
-    // 1. 将 ParsedResult 转换为 RecordModel
-    // 2. 调用 recordsProvider 的批量保存方法
-    // 3. 收集保存失败的记录
-
     for (final result in results) {
       try {
+        // 跳过无效的解析结果（没有金额）
+        if (result.amount == null || result.amount! <= 0) {
+          failedRecords.add({
+            'result': result,
+            'error': '金额无效',
+          });
+          continue;
+        }
+
         // 查找对应的 categoryId
-        // final categoryId = await _findCategoryId(result.category, result.type);
+        final categoryId = await _findCategoryId(result.category, result.type);
         
-        // final record = RecordModel(
-        //   id: DateTime.now().millisecondsSinceEpoch.toString(),
-        //   amount: result.amount!,
-        //   categoryId: categoryId,
-        //   type: result.type == '收入' ? 1 : 0,
-        //   note: result.note,
-        //   createdAt: result.time ?? DateTime.now(),
-        // );
-        
-        // await ref.read(recordsProvider.notifier).addRecord(record);
+        if (categoryId == null) {
+          failedRecords.add({
+            'result': result,
+            'error': '未找到分类：${result.category}',
+          });
+          continue;
+        }
+
+        // 创建 RecordModel
+        final record = RecordModel(
+          id: const Uuid().v4(),
+          amount: result.amount!,
+          categoryId: categoryId,
+          type: result.type == '收入' ? 1 : 0,
+          note: result.note,
+          createdAt: result.time ?? DateTime.now(),
+        );
+
+        // 保存到数据库
+        await _ref.read(recordsProvider.notifier).addRecord(record);
         successCount++;
       } catch (e) {
         failedRecords.add({
@@ -313,6 +330,12 @@ class VoiceBookkeepingController {
           ? '${failedRecords.length}条记录保存失败' 
           : null,
     );
+  }
+
+  /// 根据分类名称和类型查找分类ID
+  Future<String?> _findCategoryId(String categoryName, String type) async {
+    return await _ref.read(categoriesProvider.notifier)
+        .findCategoryIdByName(categoryName, type);
   }
 
   /// 更新解析结果列表
