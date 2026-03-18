@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/responsive.dart';
 import '../providers/records_provider.dart';
 
 /// 本周统计卡片组件
@@ -22,11 +25,20 @@ class WeeklySummaryCard extends ConsumerWidget {
 
   /// 构建统计卡片
   Widget _buildCard(BuildContext context, WeeklySummary summary) {
-    final theme = Theme.of(context);
+    // 响应式边距和内边距
+    final cardMargin = ResponsiveSpacing.getResponsiveSpacing(
+      context,
+      baseSpacing: 16.0,
+    );
+
+    final cardPadding = ResponsiveSpacing.getResponsiveSpacing(
+      context,
+      baseSpacing: 20.0,
+    );
 
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
+      margin: EdgeInsets.all(cardMargin),
+      padding: EdgeInsets.all(cardPadding),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -54,44 +66,48 @@ class WeeklySummaryCard extends ConsumerWidget {
             children: [
               Text(
                 '本周收支',
-                style: theme.textTheme.titleMedium?.copyWith(
+                style: AppTextStyles.getHeadlineMedium(context).copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: AppSpacing.symmetric(
+                  context: context,
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   _getWeekRangeText(),
-                  style: theme.textTheme.bodySmall?.copyWith(
+                  style: AppTextStyles.getBodyMedium(context).copyWith(
                     color: Colors.white.withValues(alpha: 0.9),
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          AppSpacing.height(context, 20),
 
           // 结余显示
           Text(
             '结余',
-            style: theme.textTheme.bodySmall?.copyWith(
+            style: AppTextStyles.getBodyMedium(context).copyWith(
               color: Colors.white.withValues(alpha: 0.8),
             ),
           ),
-          const SizedBox(height: 4),
+          AppSpacing.height(context, 4),
           Text(
             '¥${summary.balance.toStringAsFixed(2)}',
-            style: theme.textTheme.headlineMedium?.copyWith(
+            style: AppTextStyles.getDisplayMedium(context).copyWith(
               color: Colors.white,
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 20),
+          AppSpacing.height(context, 20),
 
           // 收支明细
           Row(
@@ -137,38 +153,47 @@ class WeeklySummaryCard extends ConsumerWidget {
     required IconData icon,
     required Color iconColor,
   }) {
-    final theme = Theme.of(context);
+    // 响应式尺寸
+    final iconSize = ResponsiveSpacing.getResponsiveSpacing(
+      context,
+      baseSpacing: 32.0,
+    );
+
+    final iconInnerSize = ResponsiveSpacing.getResponsiveSpacing(
+      context,
+      baseSpacing: 16.0,
+    );
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Container(
-          width: 32,
-          height: 32,
+          width: iconSize,
+          height: iconSize,
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
             icon,
-            size: 16,
+            size: iconInnerSize,
             color: iconColor,
           ),
         ),
-        const SizedBox(width: 12),
+        AppSpacing.width(context, 12),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               label,
-              style: theme.textTheme.bodySmall?.copyWith(
+              style: AppTextStyles.getBodyMedium(context).copyWith(
                 color: Colors.white.withValues(alpha: 0.8),
               ),
             ),
-            const SizedBox(height: 2),
+            AppSpacing.height(context, 2),
             Text(
               '¥${amount.toStringAsFixed(2)}',
-              style: theme.textTheme.bodyLarge?.copyWith(
+              style: AppTextStyles.getBodyLarge(context).copyWith(
                 color: Colors.white,
                 fontWeight: FontWeight.w600,
               ),

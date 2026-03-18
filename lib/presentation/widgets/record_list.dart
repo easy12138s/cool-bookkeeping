@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/responsive.dart';
 import '../../data/models/category_model.dart';
 import '../../data/models/parsed_result.dart';
 import '../../data/models/record_model.dart';
@@ -40,26 +43,32 @@ class RecordList extends ConsumerWidget {
 
   /// 构建空状态
   Widget _buildEmptyState(BuildContext context) {
+    // 响应式图标尺寸
+    final iconSize = ResponsiveSpacing.getResponsiveSpacing(
+      context,
+      baseSpacing: 64.0,
+    );
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
             Icons.receipt_long_outlined,
-            size: 64,
+            size: iconSize,
             color: AppColors.textSecondary.withValues(alpha: 0.5),
           ),
-          const SizedBox(height: 16),
+          AppSpacing.height(context, 16),
           Text(
             '暂无记账记录',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            style: AppTextStyles.getHeadlineMedium(context).copyWith(
                   color: AppColors.textSecondary,
                 ),
           ),
-          const SizedBox(height: 8),
+          AppSpacing.height(context, 8),
           Text(
             '长按下方语音按钮开始记账',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            style: AppTextStyles.getBodyMedium(context).copyWith(
                   color: AppColors.textSecondary.withValues(alpha: 0.7),
                 ),
           ),
@@ -80,10 +89,16 @@ class RecordList extends ConsumerWidget {
     final sortedDates = groupedRecords.keys.toList()
       ..sort((a, b) => b.compareTo(a));
 
+    // 响应式底部边距
+    final bottomPadding = ResponsiveSpacing.getResponsiveSpacing(
+      context,
+      baseSpacing: 100.0,
+    );
+
     return RefreshIndicator(
       onRefresh: () => ref.read(recordsProvider.notifier).loadRecords(),
       child: ListView.builder(
-        padding: const EdgeInsets.only(bottom: 100),
+        padding: EdgeInsets.only(bottom: bottomPadding),
         itemCount: sortedDates.length,
         itemBuilder: (context, index) {
           final date = sortedDates[index];
@@ -152,12 +167,22 @@ class RecordList extends ConsumerWidget {
       }
     }
 
+    // 响应式内边距
+    final padding = ResponsiveSpacing.getResponsiveSpacing(
+      context,
+      baseSpacing: 16.0,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 日期标题
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: AppSpacing.symmetric(
+            context: context,
+            horizontal: padding,
+            vertical: 12,
+          ),
           decoration: BoxDecoration(
             color: AppColors.background,
             border: Border(
@@ -169,7 +194,7 @@ class RecordList extends ConsumerWidget {
             children: [
               Text(
                 dateLabel,
-                style: theme.textTheme.titleSmall?.copyWith(
+                style: AppTextStyles.getTitleLarge(context).copyWith(
                       fontWeight: FontWeight.w600,
                       color: AppColors.textPrimary,
                     ),
@@ -179,15 +204,15 @@ class RecordList extends ConsumerWidget {
                   if (dayExpense > 0)
                     Text(
                       '支: ¥${dayExpense.toStringAsFixed(2)}',
-                      style: theme.textTheme.bodySmall?.copyWith(
+                      style: AppTextStyles.getBodyMedium(context).copyWith(
                             color: AppColors.expenseColor,
                           ),
                     ),
                   if (dayIncome > 0) ...[
-                    const SizedBox(width: 12),
+                    AppSpacing.width(context, 12),
                     Text(
                       '收: ¥${dayIncome.toStringAsFixed(2)}',
-                      style: theme.textTheme.bodySmall?.copyWith(
+                      style: AppTextStyles.getBodyMedium(context).copyWith(
                             color: AppColors.incomeColor,
                           ),
                     ),
@@ -215,7 +240,6 @@ class RecordList extends ConsumerWidget {
     RecordModel record,
     List<CategoryModel> categories,
   ) {
-    final theme = Theme.of(context);
     final category = categories.firstWhere(
       (c) => c.id == record.categoryId,
       orElse: () => CategoryModel(
@@ -233,12 +257,33 @@ class RecordList extends ConsumerWidget {
     final amountColor = isExpense ? AppColors.expenseColor : AppColors.incomeColor;
     final amountPrefix = isExpense ? '-' : '+';
 
+    // 响应式尺寸
+    final iconSize = ResponsiveSpacing.getResponsiveSpacing(
+      context,
+      baseSpacing: 40.0,
+    );
+
+    final iconInnerSize = ResponsiveSpacing.getResponsiveSpacing(
+      context,
+      baseSpacing: 20.0,
+    );
+
+    final itemPadding = ResponsiveSpacing.getResponsiveSpacing(
+      context,
+      baseSpacing: 12.0,
+    );
+
+    final horizontalPadding = ResponsiveSpacing.getResponsiveSpacing(
+      context,
+      baseSpacing: 16.0,
+    );
+
     return Dismissible(
       key: Key(record.id),
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
+        padding: EdgeInsets.only(right: horizontalPadding + 4),
         color: AppColors.error,
         child: const Icon(
           Icons.delete,
@@ -257,7 +302,11 @@ class RecordList extends ConsumerWidget {
       child: InkWell(
         onTap: () => _editRecord(context, ref, record, category),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: AppSpacing.symmetric(
+            context: context,
+            horizontal: horizontalPadding,
+            vertical: itemPadding,
+          ),
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(color: AppColors.divider.withValues(alpha: 0.5)),
@@ -267,8 +316,8 @@ class RecordList extends ConsumerWidget {
             children: [
               // 类别图标
               Container(
-                width: 40,
-                height: 40,
+                width: iconSize,
+                height: iconSize,
                 decoration: BoxDecoration(
                   color: amountColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
@@ -276,10 +325,10 @@ class RecordList extends ConsumerWidget {
                 child: Icon(
                   _getIconData(category.icon),
                   color: amountColor,
-                  size: 20,
+                  size: iconInnerSize,
                 ),
               ),
-              const SizedBox(width: 12),
+              AppSpacing.width(context, 12),
               // 类别和备注
               Expanded(
                 child: Column(
@@ -287,14 +336,14 @@ class RecordList extends ConsumerWidget {
                   children: [
                     Text(
                       category.name,
-                      style: theme.textTheme.bodyLarge?.copyWith(
+                      style: AppTextStyles.getBodyLarge(context).copyWith(
                             fontWeight: FontWeight.w500,
                           ),
                     ),
                     if (record.note != null && record.note!.isNotEmpty)
                       Text(
                         record.note!,
-                        style: theme.textTheme.bodySmall?.copyWith(
+                        style: AppTextStyles.getBodyMedium(context).copyWith(
                               color: AppColors.textSecondary,
                             ),
                         maxLines: 1,
@@ -309,14 +358,14 @@ class RecordList extends ConsumerWidget {
                 children: [
                   Text(
                     '$amountPrefix¥${record.amount.toStringAsFixed(2)}',
-                    style: theme.textTheme.titleMedium?.copyWith(
+                    style: AppTextStyles.getHeadlineMedium(context).copyWith(
                           color: amountColor,
                           fontWeight: FontWeight.w600,
                         ),
                   ),
                   Text(
                     DateFormat('HH:mm').format(record.createdAt),
-                    style: theme.textTheme.bodySmall?.copyWith(
+                    style: AppTextStyles.getBodyMedium(context).copyWith(
                           color: AppColors.textSecondary,
                         ),
                   ),

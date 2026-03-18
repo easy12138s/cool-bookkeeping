@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/responsive.dart';
 import '../../data/models/record_model.dart';
 import '../providers/categories_provider.dart';
 import '../providers/records_provider.dart';
@@ -170,17 +173,38 @@ class _EditRecordSheetState extends ConsumerState<EditRecordSheet> {
   Widget build(BuildContext context) {
     final categoriesAsync = ref.watch(categoriesProvider);
 
+    final containerHeight = ResponsiveSpacing.getResponsiveSpacing(
+      context,
+      baseSpacing: 500.0,
+      minSpacing: 420.0,
+      maxSpacing: 580.0,
+    );
+
+    final headerPadding = AppSpacing.symmetric(
+      context: context,
+      horizontal: 16,
+      vertical: 12,
+    );
+
+    final contentPadding = AppSpacing.symmetric(
+      context: context,
+      horizontal: 16,
+      vertical: 16,
+    );
+
+    final spacingMd = AppSpacing.md(context);
+    final spacingLg = AppSpacing.lg(context);
+
     return Container(
-      height: MediaQuery.of(context).size.height * 0.75,
+      height: containerHeight,
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       child: Column(
         children: [
-          // 顶部标题栏
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: headerPadding,
             decoration: BoxDecoration(
               border: Border(
                 bottom: BorderSide(color: AppColors.divider),
@@ -191,14 +215,11 @@ class _EditRecordSheetState extends ConsumerState<EditRecordSheet> {
               children: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('取消'),
+                  child: Text('取消', style: AppTextStyles.getBodyMedium(context)),
                 ),
-                const Text(
+                Text(
                   '编辑记录',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: AppTextStyles.getTitleMedium(context),
                 ),
                 Row(
                   children: [
@@ -207,17 +228,17 @@ class _EditRecordSheetState extends ConsumerState<EditRecordSheet> {
                       style: TextButton.styleFrom(
                         foregroundColor: AppColors.error,
                       ),
-                      child: const Text('删除'),
+                      child: Text('删除', style: AppTextStyles.getBodyMedium(context)),
                     ),
                     TextButton(
                       onPressed: _isSaving ? null : _saveRecord,
                       child: _isSaving
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 16,
                               height: 16,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Text('保存'),
+                          : Text('保存', style: AppTextStyles.getBodyMedium(context)),
                     ),
                   ],
                 ),
@@ -225,16 +246,14 @@ class _EditRecordSheetState extends ConsumerState<EditRecordSheet> {
             ),
           ),
 
-          // 表单内容
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: contentPadding,
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 收支类型切换
                     Center(
                       child: SegmentedButton<int>(
                         segments: const [
@@ -258,18 +277,18 @@ class _EditRecordSheetState extends ConsumerState<EditRecordSheet> {
                         },
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    SizedBox(height: spacingLg),
 
-                    // 金额输入
                     TextFormField(
                       controller: _amountController,
                       keyboardType:
                           const TextInputType.numberWithOptions(decimal: true),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: '金额',
                         prefixText: '¥ ',
                         border: OutlineInputBorder(),
                       ),
+                      style: AppTextStyles.getBodyLarge(context),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return '请输入金额';
@@ -281,9 +300,8 @@ class _EditRecordSheetState extends ConsumerState<EditRecordSheet> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: spacingMd),
 
-                    // 类别选择
                     categoriesAsync.when(
                       data: (categories) {
                         final filteredCategories = categories
@@ -292,7 +310,7 @@ class _EditRecordSheetState extends ConsumerState<EditRecordSheet> {
 
                         if (filteredCategories.isEmpty) {
                           return Container(
-                            padding: const EdgeInsets.all(16),
+                            padding: contentPadding,
                             decoration: BoxDecoration(
                               border: Border.all(color: Colors.orange),
                               borderRadius: BorderRadius.circular(8),
@@ -300,7 +318,7 @@ class _EditRecordSheetState extends ConsumerState<EditRecordSheet> {
                             child: Row(
                               children: [
                                 Icon(Icons.warning, color: Colors.orange),
-                                const SizedBox(width: 8),
+                                SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     _type == 0
@@ -317,11 +335,11 @@ class _EditRecordSheetState extends ConsumerState<EditRecordSheet> {
 
                         return DropdownButtonFormField<String>(
                           value: _selectedCategoryId,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: '类别',
                             border: OutlineInputBorder(),
                           ),
-                          hint: const Text('选择类别'),
+                          hint: Text('选择类别', style: AppTextStyles.getBodyMedium(context)),
                           items: filteredCategories.map((category) {
                             return DropdownMenuItem(
                               value: category.id,
@@ -332,8 +350,8 @@ class _EditRecordSheetState extends ConsumerState<EditRecordSheet> {
                                     size: 20,
                                     color: AppColors.textSecondary,
                                   ),
-                                  const SizedBox(width: 8),
-                                  Text(category.name),
+                                  SizedBox(width: 8),
+                                  Text(category.name, style: AppTextStyles.getBodyMedium(context)),
                                 ],
                               ),
                             );
@@ -349,9 +367,9 @@ class _EditRecordSheetState extends ConsumerState<EditRecordSheet> {
                           },
                         );
                       },
-                      loading: () => const Center(
+                      loading: () => Center(
                         child: Padding(
-                          padding: EdgeInsets.all(16),
+                          padding: contentPadding,
                           child: CircularProgressIndicator(),
                         ),
                       ),
@@ -360,7 +378,7 @@ class _EditRecordSheetState extends ConsumerState<EditRecordSheet> {
                         debugPrint('堆栈跟踪: $stackTrace');
 
                         return Container(
-                          padding: const EdgeInsets.all(16),
+                          padding: contentPadding,
                           decoration: BoxDecoration(
                             border: Border.all(color: Colors.red),
                             borderRadius: BorderRadius.circular(8),
@@ -372,7 +390,7 @@ class _EditRecordSheetState extends ConsumerState<EditRecordSheet> {
                               Row(
                                 children: [
                                   Icon(Icons.error, color: Colors.red),
-                                  const SizedBox(width: 8),
+                                  SizedBox(width: 8),
                                   Text(
                                     '加载类别失败',
                                     style: TextStyle(
@@ -382,7 +400,7 @@ class _EditRecordSheetState extends ConsumerState<EditRecordSheet> {
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 8),
+                              SizedBox(height: 8),
                               Text(
                                 '错误信息: $error',
                                 style: TextStyle(
@@ -390,7 +408,7 @@ class _EditRecordSheetState extends ConsumerState<EditRecordSheet> {
                                   fontSize: 12,
                                 ),
                               ),
-                              const SizedBox(height: 8),
+                              SizedBox(height: 8),
                               TextButton.icon(
                                 onPressed: () {
                                   ref
@@ -405,31 +423,30 @@ class _EditRecordSheetState extends ConsumerState<EditRecordSheet> {
                         );
                       },
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: spacingMd),
 
-                    // 时间选择
                     InkWell(
                       onTap: _selectDateTime,
                       child: InputDecorator(
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: '时间',
                           border: OutlineInputBorder(),
                           suffixIcon: Icon(Icons.calendar_today),
                         ),
-                        child: Text(_formatDateTime(_selectedDate)),
+                        child: Text(_formatDateTime(_selectedDate), style: AppTextStyles.getBodyMedium(context)),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: spacingMd),
 
-                    // 备注输入
                     TextFormField(
                       controller: _noteController,
                       maxLines: 3,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: '备注（可选）',
                         border: OutlineInputBorder(),
                         alignLabelWithHint: true,
                       ),
+                      style: AppTextStyles.getBodyMedium(context),
                     ),
                   ],
                 ),

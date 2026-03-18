@@ -106,8 +106,25 @@ class VoiceBookkeepingController {
 
       final initialized = await _speechService.initialize();
       if (!initialized) {
-        _ref.read(voiceErrorMessageProvider.notifier).state =
-            '语音识别初始化失败，请检查麦克风权限';
+        final errorCause = _speechService.lastErrorCause;
+        String errorMessage;
+
+        switch (errorCause) {
+          case services.SpeechInitErrorCause.permissionDenied:
+            errorMessage = '麦克风权限被拒绝，请前往系统设置中开启麦克风权限';
+            break;
+          case services.SpeechInitErrorCause.deviceNotSupported:
+            errorMessage = '您的设备不支持语音识别功能';
+            break;
+          case services.SpeechInitErrorCause.serviceNotAvailable:
+            errorMessage = '语音识别服务暂不可用，请稍后重试';
+            break;
+          case services.SpeechInitErrorCause.unknown:
+          default:
+            errorMessage = '语音识别初始化失败，请重试';
+        }
+
+        _ref.read(voiceErrorMessageProvider.notifier).state = errorMessage;
         _ref.read(speechStateProvider.notifier).state = SpeechState.error;
         _isRecording = false;
         return;

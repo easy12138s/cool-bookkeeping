@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/responsive.dart';
 import '../../core/utils/permission_utils.dart';
 import '../providers/voice_bookkeeping_provider.dart';
 import 'top_notification.dart';
@@ -170,6 +171,24 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
       }
     });
 
+    // 响应式按钮尺寸
+    final buttonSize = ResponsiveSpacing.getResponsiveSpacing(
+      context,
+      baseSpacing: 48.0,
+    );
+
+    // 响应式图标尺寸
+    final iconSize = ResponsiveSpacing.getResponsiveSpacing(
+      context,
+      baseSpacing: 24.0,
+    );
+
+    // 响应式加载指示器尺寸
+    final indicatorSize = ResponsiveSpacing.getResponsiveSpacing(
+      context,
+      baseSpacing: 20.0,
+    );
+
     return GestureDetector(
       onLongPressStart: (_) => _startRecording(),
       onLongPressEnd: (_) => _stopRecording(),
@@ -184,8 +203,8 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
           return Transform.scale(
             scale: scale,
             child: Container(
-              width: 48,
-              height: 48,
+              width: buttonSize,
+              height: buttonSize,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: isProcessing
@@ -213,19 +232,19 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
               ),
               child: Center(
                 child: isProcessing
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
+                    ? SizedBox(
+                        width: indicatorSize,
+                        height: indicatorSize,
                         child: CircularProgressIndicator(
                           strokeWidth: 2.5,
-                          valueColor: AlwaysStoppedAnimation<Color>(
+                          valueColor: const AlwaysStoppedAnimation<Color>(
                             Colors.white,
                           ),
                         ),
                       )
                     : Icon(
                         isRecording ? Icons.mic : Icons.mic_none,
-                        size: 24,
+                        size: iconSize,
                         color: Colors.white,
                       ),
               ),

@@ -4,6 +4,8 @@ import 'app_colors.dart';
 import 'app_text_styles.dart';
 
 /// 应用主题配置
+/// 注意：主题中的静态样式主要用于Material组件，
+/// 在自定义组件中应使用 AppTextStyles 的响应式方法
 class AppTheme {
   AppTheme._();
 

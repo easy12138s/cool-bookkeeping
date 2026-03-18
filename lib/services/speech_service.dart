@@ -18,6 +18,24 @@ enum SpeechState {
   error,
 }
 
+/// 语音识别初始化错误原因
+enum SpeechInitErrorCause {
+  /// 成功
+  success,
+
+  /// 权限被拒绝
+  permissionDenied,
+
+  /// 设备不支持语音识别
+  deviceNotSupported,
+
+  /// 语音识别服务不可用
+  serviceNotAvailable,
+
+  /// 其他错误
+  unknown,
+}
+
 /// 语音服务
 /// 封装 speech_to_text 包，提供语音识别功能
 class SpeechService {
@@ -43,20 +61,48 @@ class SpeechService {
   bool _isInitialized = false;
   bool _isListening = false;
 
+  /// 最后的错误原因
+  SpeechInitErrorCause _lastErrorCause = SpeechInitErrorCause.success;
+
+  /// 获取最后的错误原因
+  SpeechInitErrorCause get lastErrorCause => _lastErrorCause;
+
   /// 初始化语音识别
   /// 返回是否成功初始化
   Future<bool> initialize() async {
     if (_isInitialized) {
+      _lastErrorCause = SpeechInitErrorCause.success;
       return true;
     }
 
     try {
+      _lastErrorCause = SpeechInitErrorCause.unknown;
+
       _isInitialized = await _speechToText.initialize(
         onError: (error) {
-          // Web 平台上 error 可能是 Event 类型，使用 dynamic 避免类型检查错误
           if (kDebugMode) {
-            print('Speech error: $error');
+            print('Speech initialize onError: $error');
           }
+
+          final errorStr = error.toString().toLowerCase();
+          if (errorStr.contains('permission') ||
+              errorStr.contains('microphone') ||
+              errorStr.contains('denied') ||
+              errorStr.contains('not permitted')) {
+            _lastErrorCause = SpeechInitErrorCause.permissionDenied;
+          } else if (errorStr.contains('not available') ||
+              errorStr.contains('unavailable') ||
+              errorStr.contains('not listening')) {
+            _lastErrorCause = SpeechInitErrorCause.serviceNotAvailable;
+          } else if (errorStr.contains('device') ||
+              errorStr.contains('support') ||
+              errorStr.contains('not supported') ||
+              errorStr.contains('no locale')) {
+            _lastErrorCause = SpeechInitErrorCause.deviceNotSupported;
+          } else {
+            _lastErrorCause = SpeechInitErrorCause.unknown;
+          }
+
           _isListening = false;
           _stateController.add(SpeechState.error);
         },
@@ -72,11 +118,26 @@ class SpeechService {
           }
         },
       );
+
+      if (_isInitialized) {
+        _lastErrorCause = SpeechInitErrorCause.success;
+      } else if (_lastErrorCause == SpeechInitErrorCause.unknown) {
+        final available = await _speechToText.locales();
+        if (available == null || available.isEmpty) {
+          _lastErrorCause = SpeechInitErrorCause.deviceNotSupported;
+        }
+      }
+
+      if (kDebugMode) {
+        print('Speech initialize result: $_isInitialized, error cause: $_lastErrorCause');
+      }
+
       return _isInitialized;
     } catch (e) {
       if (kDebugMode) {
         print('Speech initialization error: $e');
       }
+      _lastErrorCause = SpeechInitErrorCause.unknown;
       _stateController.add(SpeechState.error);
       return false;
     }
