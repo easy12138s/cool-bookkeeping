@@ -449,6 +449,16 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
       'timer': Icons.timer,
       'redeem': Icons.redeem,
       'help': Icons.help,
+      'cleaning_services': Icons.cleaning_services,
+      'checkroom': Icons.checkroom,
+      'face': Icons.face,
+      'fitness_center': Icons.fitness_center,
+      'pets': Icons.pets,
+      'group': Icons.group,
+      'flight': Icons.flight,
+      'devices': Icons.devices,
+      'payments': Icons.payments,
+      'replay': Icons.replay,
     };
     return iconMap[iconName] ?? Icons.category;
   }

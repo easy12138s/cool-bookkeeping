@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/theme/app_theme.dart';
+import 'core/utils/permission_utils.dart';
 import 'presentation/screens/home/home_screen.dart';
 import 'presentation/screens/statistics/statistics_screen.dart';
 import 'presentation/screens/settings/settings_screen.dart';
@@ -44,6 +45,23 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     const StatisticsScreen(),
     const SettingsScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // 应用启动时检查麦克风权限
+    _checkMicrophonePermission();
+  }
+
+  /// 检查麦克风权限
+  /// 应用启动时自动调用，无权限则弹窗引导
+  void _checkMicrophonePermission() async {
+    // 延迟一点执行，确保页面已经构建完成
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (mounted) {
+      await PermissionUtils.checkAndRequestPermission(context);
+    }
+  }
 
   /// 处理导航项点击
   /// 索引映射:

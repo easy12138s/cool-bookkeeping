@@ -55,6 +55,13 @@ class WebRecordsRepository {
     await _saveRecords(records);
   }
 
+  /// 批量插入记录
+  Future<void> insertRecords(List<RecordModel> models) async {
+    final records = await getAllRecords();
+    records.addAll(models);
+    await _saveRecords(records);
+  }
+
   /// 更新记录
   Future<void> updateRecord(RecordModel model) async {
     final records = await getAllRecords();

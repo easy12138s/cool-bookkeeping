@@ -360,14 +360,16 @@ class RecordList extends ConsumerWidget {
     RecordModel record,
     CategoryModel category,
   ) {
-    // 设置解析结果用于编辑
-    ref.read(parsedResultProvider.notifier).state = ParsedResult(
-      amount: record.amount,
-      category: category.name,
-      type: record.type == 0 ? '支出' : '收入',
-      time: record.createdAt,
-      note: record.note,
-    );
+    // 设置解析结果用于编辑（单条记录用列表包装）
+    ref.read(parsedResultsProvider.notifier).state = [
+      ParsedResult(
+        amount: record.amount,
+        category: category.name,
+        type: record.type == 0 ? '支出' : '收入',
+        time: record.createdAt,
+        note: record.note,
+      )
+    ];
 
     showConfirmationCard(context, ref);
   }
@@ -405,6 +407,16 @@ class RecordList extends ConsumerWidget {
       'timer': Icons.timer,
       'redeem': Icons.redeem,
       'help': Icons.help,
+      'cleaning_services': Icons.cleaning_services,
+      'checkroom': Icons.checkroom,
+      'face': Icons.face,
+      'fitness_center': Icons.fitness_center,
+      'pets': Icons.pets,
+      'group': Icons.group,
+      'flight': Icons.flight,
+      'devices': Icons.devices,
+      'payments': Icons.payments,
+      'replay': Icons.replay,
     };
     return iconMap[iconName] ?? Icons.category;
   }

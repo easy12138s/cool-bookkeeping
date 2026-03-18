@@ -45,7 +45,9 @@ class _ConfirmationCardState extends ConsumerState<ConfirmationCard> {
 
   /// 从解析结果初始化表单数据
   void _initializeFromParsedResult() {
-    final parsedResult = ref.read(parsedResultProvider);
+    final parsedResults = ref.read(parsedResultsProvider);
+    // 使用第一条记录（向后兼容单条处理）
+    final parsedResult = parsedResults.isNotEmpty ? parsedResults.first : null;
 
     _amountController = TextEditingController(
       text: parsedResult?.amount?.toString() ?? '',
@@ -332,7 +334,7 @@ class _ConfirmationCardState extends ConsumerState<ConfirmationCard> {
   /// 重新解析
   void _reparse() {
     // 清空解析结果，触发重新解析
-    ref.read(parsedResultProvider.notifier).state = null;
+    ref.read(parsedResultsProvider.notifier).state = [];
     Navigator.of(context).pop();
   }
 
@@ -378,7 +380,7 @@ class _ConfirmationCardState extends ConsumerState<ConfirmationCard> {
     await ref.read(recordsProvider.notifier).addRecord(record);
 
     // 清空解析结果
-    ref.read(parsedResultProvider.notifier).state = null;
+    ref.read(parsedResultsProvider.notifier).state = [];
 
     if (context.mounted) {
       Navigator.of(context).pop();
@@ -414,6 +416,16 @@ class _ConfirmationCardState extends ConsumerState<ConfirmationCard> {
       'trending_up': Icons.trending_up,
       'timer': Icons.timer,
       'redeem': Icons.redeem,
+      'cleaning_services': Icons.cleaning_services,
+      'checkroom': Icons.checkroom,
+      'face': Icons.face,
+      'fitness_center': Icons.fitness_center,
+      'pets': Icons.pets,
+      'group': Icons.group,
+      'flight': Icons.flight,
+      'devices': Icons.devices,
+      'payments': Icons.payments,
+      'replay': Icons.replay,
     };
     return iconMap[iconName] ?? Icons.category;
   }

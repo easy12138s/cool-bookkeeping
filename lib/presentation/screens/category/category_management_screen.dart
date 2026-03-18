@@ -451,6 +451,13 @@ class _CategoryManagementScreenState
       'local_taxi': Icons.local_taxi,
       'local_gas_station': Icons.local_gas_station,
       'build': Icons.build,
+      'cleaning_services': Icons.cleaning_services,
+      'checkroom': Icons.checkroom,
+      'face': Icons.face,
+      'group': Icons.group,
+      'devices': Icons.devices,
+      'payments': Icons.payments,
+      'replay': Icons.replay,
     };
     return iconMap[iconName] ?? Icons.category;
   }

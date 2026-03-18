@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../providers/voice_bookkeeping_provider.dart';
+import '../../widgets/batch_confirmation_card.dart';
 import '../../widgets/record_list_widget.dart';
 import '../../widgets/weekly_summary_card.dart';
 
@@ -15,6 +16,16 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final speechState = ref.watch(speechStateProvider);
     final recognizedText = ref.watch(recognizedTextProvider);
+
+    // 监听批量确认卡片触发器
+    ref.listen<bool>(showBatchConfirmationTriggerProvider, (previous, next) {
+      if (next == true) {
+        // 重置触发器
+        ref.read(showBatchConfirmationTriggerProvider.notifier).state = false;
+        // 显示批量确认弹窗
+        showBatchConfirmationCard(context);
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(

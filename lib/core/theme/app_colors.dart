@@ -14,10 +14,15 @@ class AppColors {
   static const Color brandDark = Color(0xFF4A3BCC);
 
   /// 支出颜色 - 红色
-  static const Color expenseColor = Color(0xFFFF6B6B);
+  static const Color expense = Color(0xFFFF6B6B);
+  static const Color expenseColor = Color(0xFFFF6B6B); // 向后兼容
 
   /// 收入颜色 - 绿色
-  static const Color incomeColor = Color(0xFF51CF66);
+  static const Color income = Color(0xFF51CF66);
+  static const Color incomeColor = Color(0xFF51CF66); // 向后兼容
+
+  /// 禁用文字颜色
+  static const Color textDisabled = Color(0xFFADB5BD);
 
   /// 背景色
   static const Color background = Color(0xFFF8F9FA);

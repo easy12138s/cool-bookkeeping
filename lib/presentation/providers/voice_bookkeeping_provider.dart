@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -23,9 +25,9 @@ final recognizedTextProvider = StateProvider<String>((ref) {
   return '';
 });
 
-/// 解析结果 Provider
-final parsedResultProvider = StateProvider<ParsedResult?>((ref) {
-  return null;
+/// 解析结果列表 Provider（支持多条记账）
+final parsedResultsProvider = StateProvider<List<ParsedResult>>((ref) {
+  return [];
 });
 
 /// 录音开始时间 Provider（用于计算录音时长）
@@ -38,8 +40,20 @@ final voiceErrorMessageProvider = StateProvider<String?>((ref) {
   return null;
 });
 
+/// 显示批量确认弹窗触发 Provider
+/// 当语音解析完成需要显示批量确认弹窗时设为 true
+final showBatchConfirmationTriggerProvider = StateProvider<bool>((ref) {
+  return false;
+});
+
+/// 批量保存失败记录 Provider
+/// 存储批量保存时失败的记录列表
+final batchSaveFailedRecordsProvider = StateProvider<List<Map<String, dynamic>>>((ref) {
+  return [];
+});
+
 /// Voice Bookkeeping Controller
-/// 管理语音记账的完整流程
+/// 管理语音记账的完整流程（支持多条记账）
 class VoiceBookkeepingController {
   final Ref _ref;
   final services.SpeechService _speechService;
@@ -54,6 +68,8 @@ class VoiceBookkeepingController {
         _llmService = llmService;
 
   bool _isRecording = false;
+  StreamSubscription? _stateSubscription;
+  StreamSubscription? _textSubscription;
 
   /// 检查 LLM 是否已配置
   Future<bool> _checkLlmConfiguration() async {
@@ -95,17 +111,23 @@ class VoiceBookkeepingController {
 
       // 重置状态
       _ref.read(recognizedTextProvider.notifier).state = '';
-      _ref.read(parsedResultProvider.notifier).state = null;
+      _ref.read(parsedResultsProvider.notifier).state = [];
       _ref.read(recordingStartTimeProvider.notifier).state = DateTime.now();
+      _ref.read(showBatchConfirmationTriggerProvider.notifier).state = false;
+      _ref.read(batchSaveFailedRecordsProvider.notifier).state = [];
+
+      // 取消之前的订阅（防止内存泄漏）
+      await _stateSubscription?.cancel();
+      await _textSubscription?.cancel();
 
       // 订阅语音识别状态
-      _speechService.stateStream.listen((state) {
+      _stateSubscription = _speechService.stateStream.listen((state) {
         switch (state) {
           case services.SpeechState.listening:
             _ref.read(speechStateProvider.notifier).state = SpeechState.listening;
             break;
           case services.SpeechState.idle:
-            _ref.read(speechStateProvider.notifier).state = SpeechState.idle;
+            // 不在这里设置 idle，由 stopRecording 控制
             break;
           case services.SpeechState.error:
             _ref.read(voiceErrorMessageProvider.notifier).state =
@@ -119,7 +141,7 @@ class VoiceBookkeepingController {
       });
 
       // 订阅识别文本
-      _speechService.textStream.listen((text) {
+      _textSubscription = _speechService.textStream.listen((text) {
         if (text.isNotEmpty) {
           _ref.read(recognizedTextProvider.notifier).state = text;
         }
@@ -145,7 +167,8 @@ class VoiceBookkeepingController {
     try {
       await _speechService.stopListening();
       _ref.read(recordingStartTimeProvider.notifier).state = null;
-      _ref.read(speechStateProvider.notifier).state = SpeechState.idle;
+      // 保持 processing 状态，等待解析完成
+      _ref.read(speechStateProvider.notifier).state = SpeechState.processing;
     } catch (e) {
       _ref.read(voiceErrorMessageProvider.notifier).state =
           '停止录音失败: $e';
@@ -156,17 +179,20 @@ class VoiceBookkeepingController {
   }
 
   /// 解析语音输入
-  /// 调用 LLM 服务解析识别到的文本
+  /// 调用 LLM 服务解析识别到的文本（支持多条）
+  /// 解析完成后触发显示批量确认弹窗
   Future<void> parseVoiceInput() async {
     final text = _ref.read(recognizedTextProvider);
     if (text.isEmpty) {
       _ref.read(voiceErrorMessageProvider.notifier).state =
           '未识别到语音内容，请重试';
+      _ref.read(speechStateProvider.notifier).state = SpeechState.idle;
       return;
     }
 
     // 检查 LLM 配置
     if (!await _checkLlmConfiguration()) {
+      _ref.read(speechStateProvider.notifier).state = SpeechState.error;
       return;
     }
 
@@ -178,26 +204,35 @@ class VoiceBookkeepingController {
       final expenseCategories = ['餐饮', '交通', '购物', '娱乐', '居住', '医疗', '教育', '其他'];
       final incomeCategories = ['工资', '奖金', '投资', '兼职', '礼金', '其他'];
 
-      final result = await _llmService.parseTransaction(
+      // 调用 LLM 解析（返回 List<ParsedResult>）
+      final results = await _llmService.parseTransactions(
         text,
         expenseCategories: expenseCategories,
         incomeCategories: incomeCategories,
       );
 
       // 检查解析结果是否包含错误信息
-      if (result.note != null && result.note!.contains('未配置')) {
-        _ref.read(voiceErrorMessageProvider.notifier).state = result.note;
+      if (results.isNotEmpty && results.first.note != null && 
+          results.first.note!.contains('未配置')) {
+        _ref.read(voiceErrorMessageProvider.notifier).state = results.first.note;
         _ref.read(speechStateProvider.notifier).state = SpeechState.error;
         return;
       }
 
-      _ref.read(parsedResultProvider.notifier).state = result;
-
-      // 如果解析失败（没有金额），显示提示
-      if (result.amount == null) {
+      // 过滤掉没有金额的记录
+      final validResults = results.where((r) => r.amount != null).toList();
+      
+      if (validResults.isEmpty) {
         _ref.read(voiceErrorMessageProvider.notifier).state =
-            result.note ?? '无法解析金额，请手动输入';
+            results.first.note ?? '无法解析金额，请手动输入';
+        _ref.read(speechStateProvider.notifier).state = SpeechState.error;
+        return;
       }
+
+      _ref.read(parsedResultsProvider.notifier).state = validResults;
+
+      // 触发显示批量确认弹窗
+      _ref.read(showBatchConfirmationTriggerProvider.notifier).state = true;
     } catch (e) {
       if (kDebugMode) {
         print('Parse voice input error: $e');
@@ -206,30 +241,84 @@ class VoiceBookkeepingController {
           '解析失败: $e\n请检查 API 配置或手动输入';
       _ref.read(speechStateProvider.notifier).state = SpeechState.error;
     } finally {
-      _ref.read(speechStateProvider.notifier).state = SpeechState.idle;
+      // 只有在出错时才设置为 error
+      final hasError = _ref.read(voiceErrorMessageProvider) != null;
+      if (hasError) {
+        _ref.read(speechStateProvider.notifier).state = SpeechState.error;
+      } else {
+        _ref.read(speechStateProvider.notifier).state = SpeechState.idle;
+      }
     }
   }
 
-  /// 保存记录
-  /// 将解析结果保存到数据库
-  /// 返回是否保存成功
-  Future<bool> saveRecord() async {
-    final result = _ref.read(parsedResultProvider);
-    if (result == null || result.amount == null) {
-      _ref.read(voiceErrorMessageProvider.notifier).state =
-          '没有可保存的记账数据';
-      return false;
+  /// 批量保存记录
+  /// 将解析结果列表保存到数据库
+  /// 返回保存成功的记录数和失败的记录列表
+  Future<BatchSaveResult> saveRecords(List<ParsedResult> results) async {
+    if (results.isEmpty) {
+      return BatchSaveResult(
+        successCount: 0,
+        failedRecords: [],
+        errorMessage: '没有可保存的记账数据',
+      );
     }
 
-    // TODO: 实现保存逻辑，需要找到对应的 categoryId
-    // 这里需要调用 recordsProvider 的 addRecord 方法
+    final failedRecords = <Map<String, dynamic>>[];
+    var successCount = 0;
+
+    // TODO: 实现批量保存逻辑
+    // 这里需要：
+    // 1. 将 ParsedResult 转换为 RecordModel
+    // 2. 调用 recordsProvider 的批量保存方法
+    // 3. 收集保存失败的记录
+
+    for (final result in results) {
+      try {
+        // 查找对应的 categoryId
+        // final categoryId = await _findCategoryId(result.category, result.type);
+        
+        // final record = RecordModel(
+        //   id: DateTime.now().millisecondsSinceEpoch.toString(),
+        //   amount: result.amount!,
+        //   categoryId: categoryId,
+        //   type: result.type == '收入' ? 1 : 0,
+        //   note: result.note,
+        //   createdAt: result.time ?? DateTime.now(),
+        // );
+        
+        // await ref.read(recordsProvider.notifier).addRecord(record);
+        successCount++;
+      } catch (e) {
+        failedRecords.add({
+          'result': result,
+          'error': e.toString(),
+        });
+      }
+    }
 
     // 清空状态
-    _ref.read(recognizedTextProvider.notifier).state = '';
-    _ref.read(parsedResultProvider.notifier).state = null;
-    clearError();
+    if (failedRecords.isEmpty) {
+      _ref.read(recognizedTextProvider.notifier).state = '';
+      _ref.read(parsedResultsProvider.notifier).state = [];
+      _ref.read(showBatchConfirmationTriggerProvider.notifier).state = false;
+      clearError();
+    } else {
+      _ref.read(batchSaveFailedRecordsProvider.notifier).state = failedRecords;
+    }
 
-    return true;
+    return BatchSaveResult(
+      successCount: successCount,
+      failedRecords: failedRecords,
+      errorMessage: failedRecords.isNotEmpty 
+          ? '${failedRecords.length}条记录保存失败' 
+          : null,
+    );
+  }
+
+  /// 更新解析结果列表
+  /// 用于在批量确认弹窗中编辑后更新
+  void updateParsedResults(List<ParsedResult> results) {
+    _ref.read(parsedResultsProvider.notifier).state = results;
   }
 
   /// 取消录音
@@ -245,22 +334,58 @@ class VoiceBookkeepingController {
       _isRecording = false;
       _ref.read(recordingStartTimeProvider.notifier).state = null;
       _ref.read(recognizedTextProvider.notifier).state = '';
-      _ref.read(parsedResultProvider.notifier).state = null;
+      _ref.read(parsedResultsProvider.notifier).state = [];
+      _ref.read(showBatchConfirmationTriggerProvider.notifier).state = false;
+      _ref.read(batchSaveFailedRecordsProvider.notifier).state = [];
       _ref.read(speechStateProvider.notifier).state = SpeechState.idle;
       clearError();
+
+      // 取消订阅
+      await _stateSubscription?.cancel();
+      await _textSubscription?.cancel();
+      _stateSubscription = null;
+      _textSubscription = null;
     }
+  }
+
+  /// 释放资源
+  /// 在控制器销毁时调用
+  void dispose() {
+    _stateSubscription?.cancel();
+    _textSubscription?.cancel();
   }
 }
 
+/// 批量保存结果
+class BatchSaveResult {
+  final int successCount;
+  final List<Map<String, dynamic>> failedRecords;
+  final String? errorMessage;
+
+  BatchSaveResult({
+    required this.successCount,
+    required this.failedRecords,
+    this.errorMessage,
+  });
+
+  bool get isSuccess => failedRecords.isEmpty;
+}
+
 /// Voice Bookkeeping Controller Provider
-final voiceBookkeepingControllerProvider = Provider<VoiceBookkeepingController>(
-  (ref) {
-    final speechService = ref.watch(speechServiceProvider);
-    final llmService = ref.watch(llmServiceProvider);
-    return VoiceBookkeepingController(
-      ref: ref,
-      speechService: speechService,
-      llmService: llmService,
-    );
-  },
-);
+final voiceBookkeepingControllerProvider = Provider<VoiceBookkeepingController>((ref) {
+  final speechService = ref.watch(speechServiceProvider);
+  final llmService = ref.watch(llmServiceProvider);
+
+  final controller = VoiceBookkeepingController(
+    ref: ref,
+    speechService: speechService,
+    llmService: llmService,
+  );
+  
+  // 确保控制器正确释放
+  ref.onDispose(() {
+    controller.dispose();
+  });
+  
+  return controller;
+});

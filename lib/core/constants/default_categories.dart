@@ -7,7 +7,7 @@ class DefaultCategories {
   DefaultCategories._();
 
   /// 支出类别列表
-  /// 
+  ///
   /// 每个类别包含：
   /// - id: 唯一标识符
   /// - name: 类别名称
@@ -81,18 +81,90 @@ class DefaultCategories {
       'sortOrder': 6,
     },
     {
+      'id': 'expense_daily',
+      'name': '日用',
+      'icon': 'cleaning_services',
+      'type': 0,
+      'isPreset': true,
+      'isEnabled': true,
+      'sortOrder': 7,
+    },
+    {
+      'id': 'expense_clothing',
+      'name': '服饰',
+      'icon': 'checkroom',
+      'type': 0,
+      'isPreset': true,
+      'isEnabled': true,
+      'sortOrder': 8,
+    },
+    {
+      'id': 'expense_beauty',
+      'name': '美妆',
+      'icon': 'face',
+      'type': 0,
+      'isPreset': true,
+      'isEnabled': true,
+      'sortOrder': 9,
+    },
+    {
+      'id': 'expense_sports',
+      'name': '运动',
+      'icon': 'fitness_center',
+      'type': 0,
+      'isPreset': true,
+      'isEnabled': true,
+      'sortOrder': 10,
+    },
+    {
+      'id': 'expense_pet',
+      'name': '宠物',
+      'icon': 'pets',
+      'type': 0,
+      'isPreset': true,
+      'isEnabled': true,
+      'sortOrder': 11,
+    },
+    {
+      'id': 'expense_social',
+      'name': '社交',
+      'icon': 'group',
+      'type': 0,
+      'isPreset': true,
+      'isEnabled': true,
+      'sortOrder': 12,
+    },
+    {
+      'id': 'expense_travel',
+      'name': '旅行',
+      'icon': 'flight',
+      'type': 0,
+      'isPreset': true,
+      'isEnabled': true,
+      'sortOrder': 13,
+    },
+    {
+      'id': 'expense_digital',
+      'name': '数码',
+      'icon': 'devices',
+      'type': 0,
+      'isPreset': true,
+      'isEnabled': true,
+      'sortOrder': 14,
+    },
+    {
       'id': 'expense_other',
       'name': '其他',
       'icon': 'more_horiz',
       'type': 0,
       'isPreset': true,
       'isEnabled': true,
-      'sortOrder': 7,
+      'sortOrder': 15,
     },
   ];
 
   /// 收入类别列表
-  /// 
+  ///
   /// 每个类别包含：
   /// - id: 唯一标识符
   /// - name: 类别名称
@@ -148,13 +220,31 @@ class DefaultCategories {
       'sortOrder': 4,
     },
     {
+      'id': 'income_allowance',
+      'name': '补贴',
+      'icon': 'payments',
+      'type': 1,
+      'isPreset': true,
+      'isEnabled': true,
+      'sortOrder': 5,
+    },
+    {
+      'id': 'income_refund',
+      'name': '退款',
+      'icon': 'replay',
+      'type': 1,
+      'isPreset': true,
+      'isEnabled': true,
+      'sortOrder': 6,
+    },
+    {
       'id': 'income_other',
       'name': '其他',
       'icon': 'more_horiz',
       'type': 1,
       'isPreset': true,
       'isEnabled': true,
-      'sortOrder': 5,
+      'sortOrder': 7,
     },
   ];
 

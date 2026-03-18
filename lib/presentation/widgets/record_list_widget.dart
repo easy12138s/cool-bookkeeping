@@ -8,17 +8,13 @@ import '../../data/models/record_model.dart';
 import '../providers/categories_provider.dart';
 import '../providers/records_provider.dart';
 import 'edit_record_sheet.dart';
-import 'manual_entry_sheet.dart';
 import 'top_notification.dart';
 
 /// 记录列表组件
 /// 显示记账记录列表，支持按日期分组、滑动删除和点击编辑
 class RecordListWidget extends ConsumerWidget {
-  final VoidCallback? onVoiceRecordTap;
-
   const RecordListWidget({
     super.key,
-    this.onVoiceRecordTap,
   });
 
   @override
@@ -76,65 +72,13 @@ class RecordListWidget extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '点击下方话筒或记账按钮，语音或手动记录',
+              '点击下方导航栏的话筒或记账按钮开始记录',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: AppColors.textSecondary,
               ),
             ),
             const SizedBox(height: 32),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildActionButton(
-                  context: context,
-                  icon: Icons.mic,
-                  label: '语音记账',
-                  onTap: onVoiceRecordTap,
-                ),
-                const SizedBox(width: 16),
-                _buildActionButton(
-                  context: context,
-                  icon: Icons.edit,
-                  label: '手动记账',
-                  onTap: () => showManualEntrySheet(context),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// 构建快捷操作按钮
-  Widget _buildActionButton({
-    required BuildContext context,
-    required IconData icon,
-    required String label,
-    required VoidCallback? onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        decoration: BoxDecoration(
-          border: Border.all(color: AppColors.brandPrimary),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 20, color: AppColors.brandPrimary),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: AppColors.brandPrimary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
           ],
         ),
       ),
@@ -410,6 +354,16 @@ class RecordListWidget extends ConsumerWidget {
       'timer': Icons.timer,
       'redeem': Icons.redeem,
       'help': Icons.help_outline,
+      'cleaning_services': Icons.cleaning_services,
+      'checkroom': Icons.checkroom,
+      'face': Icons.face,
+      'fitness_center': Icons.fitness_center,
+      'pets': Icons.pets,
+      'group': Icons.group,
+      'flight': Icons.flight,
+      'devices': Icons.devices,
+      'payments': Icons.payments,
+      'replay': Icons.replay,
     };
     return iconMap[iconName] ?? Icons.category;
   }
