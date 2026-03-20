@@ -250,8 +250,11 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
         if (isRecording || isProcessing || hasError || _hasStoppedOnce)
           VoiceStatusTooltip(
             state: speechState,
+            step: ref.watch(voiceStepProvider),
             recognizedText: recognizedText,
             recordingSeconds: _recordingSeconds,
+            errorDetail: ref.watch(voiceErrorDetailProvider),
+            suggestion: ref.watch(voiceSuggestionProvider),
             onCancel: isRecording ? _cancelRecording : null,
           ),
 
