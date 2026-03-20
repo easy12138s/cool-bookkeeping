@@ -79,6 +79,34 @@ class VoiceRecognitionSheet extends ConsumerWidget {
   /// 构建状态图标
   Widget _buildStatusIcon(SpeechState state) {
     switch (state) {
+      case SpeechState.initializing:
+        return Container(
+          width: 88,
+          height: 88,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [AppColors.brandPrimary, AppColors.brandLight],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.brandPrimary.withValues(alpha: 0.3),
+                blurRadius: 20,
+                spreadRadius: 4,
+              ),
+            ],
+          ),
+          child: const SizedBox(
+            width: 36,
+            height: 36,
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
+          ),
+        );
       case SpeechState.listening:
         return _buildAnimatedMicIcon();
       case SpeechState.processing:
@@ -123,6 +151,20 @@ class VoiceRecognitionSheet extends ConsumerWidget {
             color: AppColors.error,
           ),
         );
+      case SpeechState.success:
+        return Container(
+          width: 88,
+          height: 88,
+          decoration: BoxDecoration(
+            color: AppColors.success.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.check_circle_outline,
+            size: 44,
+            color: AppColors.success,
+          ),
+        );
       default:
         return const SizedBox.shrink();
     }
@@ -161,6 +203,10 @@ class VoiceRecognitionSheet extends ConsumerWidget {
     String title;
     Color color;
     switch (state) {
+      case SpeechState.initializing:
+        title = '正在初始化...';
+        color = AppColors.brandPrimary;
+        break;
       case SpeechState.listening:
         title = '正在听您说...';
         color = AppColors.brandPrimary;
@@ -172,6 +218,10 @@ class VoiceRecognitionSheet extends ConsumerWidget {
       case SpeechState.error:
         title = '识别失败';
         color = AppColors.error;
+        break;
+      case SpeechState.success:
+        title = '识别成功';
+        color = AppColors.success;
         break;
       default:
         title = '';
@@ -192,6 +242,9 @@ class VoiceRecognitionSheet extends ConsumerWidget {
   Widget _buildStatusDescription(SpeechState state) {
     String description;
     switch (state) {
+      case SpeechState.initializing:
+        description = '正在准备语音识别服务';
+        break;
       case SpeechState.listening:
         description = '请说出消费内容，例如："午餐花了25元"';
         break;
@@ -200,6 +253,9 @@ class VoiceRecognitionSheet extends ConsumerWidget {
         break;
       case SpeechState.error:
         description = '抱歉没听清，请重试或手动记账';
+        break;
+      case SpeechState.success:
+        description = '语音识别完成，正在处理';
         break;
       default:
         description = '';
@@ -403,6 +459,11 @@ class VoiceRecognitionSheet extends ConsumerWidget {
     Color color;
 
     switch (state) {
+      case SpeechState.initializing:
+        hint = '请稍候，正在准备';
+        icon = Icons.settings;
+        color = AppColors.brandPrimary;
+        break;
       case SpeechState.listening:
         hint = '松开手指结束录音';
         icon = Icons.touch_app;
@@ -417,6 +478,11 @@ class VoiceRecognitionSheet extends ConsumerWidget {
         hint = '长按话筒重试';
         icon = Icons.replay;
         color = AppColors.error;
+        break;
+      case SpeechState.success:
+        hint = '识别成功';
+        icon = Icons.check_circle;
+        color = AppColors.success;
         break;
       default:
         return const SizedBox.shrink();

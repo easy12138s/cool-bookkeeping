@@ -245,7 +245,11 @@ class _BatchConfirmationCardState extends ConsumerState<BatchConfirmationCard> {
           // 取消按钮
           Expanded(
             child: OutlinedButton(
-              onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+              onPressed: _isSaving ? null : () {
+                // 取消时重置语音状态
+                ref.read(voiceBookkeepingControllerProvider).reset();
+                Navigator.of(context).pop();
+              },
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.textSecondary,
                 side: const BorderSide(color: AppColors.divider),

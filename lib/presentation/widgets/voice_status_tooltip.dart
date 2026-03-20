@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../providers/voice_bookkeeping_provider.dart';
 
@@ -30,54 +29,60 @@ class VoiceStatusTooltip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 只有在录音或处理状态时才显示
-    if (state == SpeechState.idle) {
+    // 空闲和取消状态不显示弹窗
+    if (state == SpeechState.idle || state == SpeechState.cancelled) {
       return const SizedBox.shrink();
     }
 
+    // 使用 MediaQuery 获取屏幕宽度
+    final screenWidth = MediaQuery.of(context).size.width;
+    final tooltipWidth = screenWidth * 0.7;
+    // 计算居中偏移量
+    final leftOffset = (screenWidth - tooltipWidth) / 2;
+
     return Positioned(
-      bottom: 100, // 按钮上方
-      left: 16,
-      right: 16,
-      child: Center(
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.15),
-                  blurRadius: 12,
-                  spreadRadius: 2,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+      bottom: 100,
+      left: leftOffset,
+      width: tooltipWidth,
+      child: Container(
+        width: tooltipWidth,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 12,
+              spreadRadius: 2,
+              offset: const Offset(0, 4),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildStatusText(context),
-                if (recognizedText != null && recognizedText!.isNotEmpty)
-                  _buildRecognizedText(context),
-                if (state == SpeechState.listening) _buildCancelButton(context),
-              ],
-            ),
-          ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildStatusText(context),
+            if (recognizedText != null && recognizedText!.isNotEmpty)
+              _buildRecognizedText(context),
+            if (state == SpeechState.listening) _buildCancelButton(context),
+          ],
         ),
       ),
     );
   }
 
-  /// 构建状态文本
   Widget _buildStatusText(BuildContext context) {
     String statusText;
     IconData icon;
     Color iconColor;
 
     switch (state) {
+      case SpeechState.initializing:
+        statusText = '⚙️ 正在初始化语音识别...';
+        icon = Icons.settings;
+        iconColor = AppColors.brandSecondary;
+        break;
       case SpeechState.listening:
         statusText = '🎤 正在录音 ${_formatDuration(recordingSeconds)}';
         icon = Icons.mic;
@@ -92,17 +97,26 @@ class VoiceStatusTooltip extends StatelessWidget {
         icon = Icons.hourglass_top;
         iconColor = AppColors.brandSecondary;
         break;
+      case SpeechState.error:
+        statusText = '❌ 语音识别出错';
+        icon = Icons.error_outline;
+        iconColor = AppColors.error;
+        break;
+      case SpeechState.success:
+        statusText = '✅ 识别成功';
+        icon = Icons.check_circle_outline;
+        iconColor = AppColors.success;
+        break;
       case SpeechState.idle:
-      default:
+      case SpeechState.cancelled:
         return const SizedBox.shrink();
     }
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
-      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 20, color: iconColor),
-        AppSpacing.width(context, 8),
+        const SizedBox(width: 8),
         Flexible(
           child: Text(
             statusText,
@@ -116,7 +130,6 @@ class VoiceStatusTooltip extends StatelessWidget {
     );
   }
 
-  /// 构建识别文本
   Widget _buildRecognizedText(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(top: 12),
@@ -132,14 +145,13 @@ class VoiceStatusTooltip extends StatelessWidget {
             color: AppColors.textSecondary,
           ),
           textAlign: TextAlign.center,
-          maxLines: 3,
+          maxLines: 5,
           overflow: TextOverflow.ellipsis,
         ),
       ),
     );
   }
 
-  /// 构建取消按钮
   Widget _buildCancelButton(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(top: 12),
@@ -155,7 +167,6 @@ class VoiceStatusTooltip extends StatelessWidget {
     );
   }
 
-  /// 格式化时长
   String _formatDuration(int seconds) {
     final minutes = seconds ~/ 60;
     final secs = seconds % 60;

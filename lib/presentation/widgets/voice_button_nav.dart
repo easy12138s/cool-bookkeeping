@@ -25,10 +25,12 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _pulseController;
   bool _isStarting = false;
-  bool _isStopping = false; // 添加标志位，防止正常结束时触发取消
+  bool _isStopping = false;
+  bool _hasStoppedOnce = false;
   Timer? _recordingTimer;
   int _recordingSeconds = 0;
   bool _wasPaused = false;
+  Timer? _errorResetTimer;
 
   @override
   void initState() {
@@ -44,6 +46,7 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
   void dispose() {
     _pulseController.dispose();
     _recordingTimer?.cancel();
+    _errorResetTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -66,13 +69,33 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
   }
 
   void _startRecording() async {
-    if (_isStarting) return;
-    _isStarting = true;
-
-    if (kDebugMode) {
-      print('[VoiceButtonNav] Starting recording...');
+    // 防抖检查
+    if (_isStarting) {
+      if (kDebugMode) {
+        print('[VoiceButtonNav] Already starting, ignoring');
+      }
+      return;
     }
 
+    final currentState = ref.read(speechStateProvider);
+    if (kDebugMode) {
+      print('[VoiceButtonNav] Starting recording, current state: $currentState');
+    }
+
+    // 如果当前不是空闲状态，先重置
+    if (currentState != SpeechState.idle) {
+      if (kDebugMode) {
+        print('[VoiceButtonNav] Not idle, resetting first');
+      }
+      final controller = ref.read(voiceBookkeepingControllerProvider);
+      controller.reset();
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+
+    _isStarting = true;
+
+    if (!mounted) return;
+    
     final hasPermission = await PermissionUtils.handleMicrophonePermission(context);
     if (kDebugMode) {
       print('[VoiceButtonNav] Permission result: $hasPermission');
@@ -89,13 +112,20 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
     // 重置状态
     final controller = ref.read(voiceBookkeepingControllerProvider);
     controller.reset();
+    _hasStoppedOnce = false;
+    _errorResetTimer?.cancel();
 
     if (kDebugMode) {
       print('[VoiceButtonNav] Calling startRecording');
     }
-    await controller.startRecording();
+    
+    final success = await controller.startRecording();
+    
+    if (kDebugMode) {
+      print('[VoiceButtonNav] startRecording result: $success');
+    }
 
-    if (mounted) {
+    if (success && mounted) {
       _pulseController.repeat();
       _startRecordingTimer();
     }
@@ -108,7 +138,7 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
     _recordingTimer?.cancel();
     _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       _recordingSeconds++;
-      setState(() {}); // 更新 UI 显示时长
+      setState(() {});
       if (_recordingSeconds >= 15) {
         timer.cancel();
         _stopRecording();
@@ -117,30 +147,41 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
   }
 
   void _stopRecording() async {
-    _isStopping = true; // 标记为正常结束
+    _isStopping = true;
+    _hasStoppedOnce = true;
     _recordingTimer?.cancel();
     _pulseController.stop();
     _pulseController.reset();
+
+    // 检查最小录音时间
+    if (_recordingSeconds < 1) {
+      if (kDebugMode) {
+        print('[VoiceButtonNav] Recording too short: ${_recordingSeconds}s');
+      }
+      if (mounted) {
+        TopNotification.warning(context, '录音时间太短，请长按至少1秒');
+      }
+      final controller = ref.read(voiceBookkeepingControllerProvider);
+      controller.reset();
+      return;
+    }
 
     final controller = ref.read(voiceBookkeepingControllerProvider);
     await controller.stopRecording();
 
     if (!mounted) return;
 
-    // 解析语音输入
     try {
       await controller.parseVoiceInput();
     } catch (e) {
       if (kDebugMode) {
         print('Parse voice input error in button: $e');
       }
-      // 错误时重置状态
       controller.reset();
     }
   }
 
   void _cancelRecording() {
-    // 如果是正常结束触发的取消，忽略
     if (_isStopping) {
       _isStopping = false;
       return;
@@ -148,6 +189,8 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
     _recordingTimer?.cancel();
     _pulseController.stop();
     _pulseController.reset();
+    _hasStoppedOnce = false;
+    _errorResetTimer?.cancel();
 
     final controller = ref.read(voiceBookkeepingControllerProvider);
     controller.cancelRecording();
@@ -159,28 +202,36 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
     final speechState = ref.watch(speechStateProvider);
     final recognizedText = ref.watch(recognizedTextProvider);
     final isRecording = speechState == SpeechState.listening;
-    final isProcessing = speechState == SpeechState.processing;
+    final isProcessing = speechState == SpeechState.processing || 
+                         speechState == SpeechState.initializing;
+    final hasError = speechState == SpeechState.error;
 
     // 监听错误信息并显示提示
     ref.listen<String?>(voiceErrorMessageProvider, (previous, next) {
-      if (next != null && next.isNotEmpty) {
+      if (next != null && next.isNotEmpty && previous != next) {
         TopNotification.error(context, next);
-        // 错误显示后重置状态
-        Future.delayed(const Duration(seconds: 2), () {
+        
+        // 取消之前的重置计时器
+        _errorResetTimer?.cancel();
+        
+        // 错误显示后延迟重置状态
+        _errorResetTimer = Timer(const Duration(seconds: 2), () {
           if (mounted) {
-            ref.read(voiceBookkeepingControllerProvider).reset();
+            final controller = ref.read(voiceBookkeepingControllerProvider);
+            controller.reset();
+            _hasStoppedOnce = false;
           }
         });
       }
     });
 
-    // 响应式按钮尺寸（增大到 72px，便于长按操作）
+    // 响应式按钮尺寸
     final buttonSize = ResponsiveSpacing.getResponsiveSpacing(
       context,
       baseSpacing: 72.0,
     );
 
-    // 响应式图标尺寸（增大到 32px）
+    // 响应式图标尺寸
     final iconSize = ResponsiveSpacing.getResponsiveSpacing(
       context,
       baseSpacing: 32.0,
@@ -195,8 +246,8 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        // 悬浮状态提示
-        if (isRecording || isProcessing)
+        // 悬浮状态提示 - 在录音、处理或错误状态时显示
+        if (isRecording || isProcessing || hasError || _hasStoppedOnce)
           VoiceStatusTooltip(
             state: speechState,
             recognizedText: recognizedText,
@@ -223,11 +274,13 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
                   height: buttonSize,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: isProcessing
-                        ? AppColors.brandSecondary
-                        : isRecording
-                            ? AppColors.error
-                            : AppColors.brandPrimary,
+                    color: hasError
+                        ? AppColors.error
+                        : isProcessing
+                            ? AppColors.brandSecondary
+                            : isRecording
+                                ? AppColors.error
+                                : AppColors.brandPrimary,
                     boxShadow: isRecording
                         ? [
                             BoxShadow(
@@ -259,7 +312,7 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
                             ),
                           )
                         : Icon(
-                            isRecording ? Icons.mic : Icons.mic_none,
+                            hasError ? Icons.error_outline : (isRecording ? Icons.mic : Icons.mic_none),
                             size: iconSize,
                             color: Colors.white,
                           ),

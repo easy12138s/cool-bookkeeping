@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../data/models/parsed_result.dart';
+import 'cupertino_datetime_picker.dart';
 
 /// 单条记录编辑项
 /// 支持展开/收起式编辑
@@ -32,6 +33,7 @@ class _RecordEditItemState extends State<RecordEditItem> {
   late TextEditingController _noteController;
   late String _selectedCategory;
   late String _selectedType;
+  late DateTime _selectedTime;
 
   final List<String> _expenseCategories = ['餐饮', '交通', '购物', '娱乐', '居住', '医疗', '教育', '其他'];
   final List<String> _incomeCategories = ['工资', '奖金', '投资', '兼职', '礼金', '其他'];
@@ -47,6 +49,7 @@ class _RecordEditItemState extends State<RecordEditItem> {
     );
     _selectedCategory = widget.result.category;
     _selectedType = widget.result.type;
+    _selectedTime = widget.result.time ?? DateTime.now();
   }
 
   @override
@@ -100,7 +103,7 @@ class _RecordEditItemState extends State<RecordEditItem> {
       title: Row(
         children: [
           Text(
-            '${widget.result.note ?? '记录'}',
+            widget.result.note ?? '记录',
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
@@ -218,6 +221,11 @@ class _RecordEditItemState extends State<RecordEditItem> {
           
           // 备注输入
           _buildNoteField(),
+          
+          const SizedBox(height: 16),
+          
+          // 时间选择
+          _buildTimeField(),
         ],
       ),
     );
@@ -433,6 +441,85 @@ class _RecordEditItemState extends State<RecordEditItem> {
     );
   }
 
+  /// 构建时间选择字段
+  Widget _buildTimeField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '时间',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: _selectDateTime,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.divider),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.access_time,
+                      size: 20,
+                      color: AppColors.textSecondary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _formatDateTime(_selectedTime),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+                const Icon(
+                  Icons.chevron_right,
+                  color: AppColors.textSecondary,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 选择日期时间
+  Future<void> _selectDateTime() async {
+    final selected = await showCupertinoDatetimePicker(
+      context: context,
+      initialDateTime: _selectedTime,
+      minimumYear: 2020,
+      maximumYear: 2030,
+    );
+
+    if (selected != null && mounted) {
+      setState(() {
+        _selectedTime = selected;
+      });
+      _updateResult();
+    }
+  }
+
+  /// 格式化日期时间显示（中文格式）
+  String _formatDateTime(DateTime dateTime) {
+    return '${dateTime.year}年${dateTime.month}月${dateTime.day}日 '
+        '${dateTime.hour.toString().padLeft(2, '0')}时'
+        '${dateTime.minute.toString().padLeft(2, '0')}分';
+  }
+
   /// 更新结果
   void _updateResult() {
     final amount = double.tryParse(_amountController.text);
@@ -442,7 +529,7 @@ class _RecordEditItemState extends State<RecordEditItem> {
       type: _selectedType,
       note: _noteController.text.isEmpty ? null : _noteController.text,
       rawText: widget.result.rawText,
-      time: widget.result.time,
+      time: _selectedTime,
     ));
   }
 }

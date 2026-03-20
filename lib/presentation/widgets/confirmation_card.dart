@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../data/models/category_model.dart';
@@ -8,6 +7,7 @@ import '../../data/models/record_model.dart';
 import '../providers/categories_provider.dart';
 import '../providers/records_provider.dart';
 import '../providers/voice_bookkeeping_provider.dart';
+import 'cupertino_datetime_picker.dart';
 
 /// 显示确认卡片底部弹窗
 /// [context] BuildContext
@@ -223,7 +223,7 @@ class _ConfirmationCardState extends ConsumerState<ConfirmationCard> {
         );
       },
       loading: () => const LinearProgressIndicator(),
-      error: (_, __) => const Text('加载类别失败'),
+      error: (Object error, StackTrace stackTrace) => const Text('加载类别失败'),
     );
   }
 
@@ -240,7 +240,7 @@ class _ConfirmationCardState extends ConsumerState<ConfirmationCard> {
           ),
         ),
         child: Text(
-          DateFormat('yyyy-MM-dd HH:mm').format(_selectedTime),
+          _formatDateTime(_selectedTime),
           style: Theme.of(context).textTheme.bodyLarge,
         ),
       ),
@@ -249,31 +249,25 @@ class _ConfirmationCardState extends ConsumerState<ConfirmationCard> {
 
   /// 选择日期时间
   Future<void> _selectDateTime() async {
-    final date = await showDatePicker(
+    final selected = await showCupertinoDatetimePicker(
       context: context,
-      initialDate: _selectedTime,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
+      initialDateTime: _selectedTime,
+      minimumYear: 2020,
+      maximumYear: 2030,
     );
 
-    if (date != null && context.mounted) {
-      final time = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay.fromDateTime(_selectedTime),
-      );
-
-      if (time != null) {
-        setState(() {
-          _selectedTime = DateTime(
-            date.year,
-            date.month,
-            date.day,
-            time.hour,
-            time.minute,
-          );
-        });
-      }
+    if (selected != null && mounted) {
+      setState(() {
+        _selectedTime = selected;
+      });
     }
+  }
+
+  /// 格式化日期时间显示（中文格式）
+  String _formatDateTime(DateTime dateTime) {
+    return '${dateTime.year}年${dateTime.month}月${dateTime.day}日 '
+        '${dateTime.hour.toString().padLeft(2, '0')}时'
+        '${dateTime.minute.toString().padLeft(2, '0')}分';
   }
 
   /// 构建备注输入框
@@ -382,12 +376,11 @@ class _ConfirmationCardState extends ConsumerState<ConfirmationCard> {
     // 清空解析结果
     ref.read(parsedResultsProvider.notifier).state = [];
 
-    if (context.mounted) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('记账成功')),
-      );
-    }
+    if (!mounted) return;
+    Navigator.of(context).pop();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('记账成功')),
+    );
   }
 
   /// 显示错误提示

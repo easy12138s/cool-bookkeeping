@@ -14,10 +14,24 @@ import 'records_provider.dart';
 
 /// 语音识别状态
 enum SpeechState {
-  idle,
-  listening,
-  processing,
-  error,
+  idle,           // 空闲状态
+  initializing,   // 初始化中
+  listening,      // 录音中
+  processing,     // 处理中（松手后）
+  success,        // 成功（解析完成）
+  error,          // 错误状态
+  cancelled,      // 用户取消
+}
+
+/// 语音识别错误类型
+enum SpeechRecognitionErrorType {
+  none,                   // 无错误
+  initializationFailed,   // 初始化失败
+  permissionDenied,       // 权限拒绝
+  noSpeechDetected,       // 未检测到语音
+  networkError,           // 网络错误
+  parsingFailed,          // 解析失败
+  unknown,                // 未知错误
 }
 
 /// 语音状态 Provider
@@ -76,8 +90,136 @@ class VoiceBookkeepingController {
         _baiduSpeechService = baiduSpeechService;
 
   bool _isRecording = false;
+  bool _isProcessingAction = false; // 防抖标志
+  SpeechRecognitionErrorType _lastErrorType = SpeechRecognitionErrorType.none;
+  int _retryCount = 0;
+  static const int _maxRetryCount = 2;
+  
   StreamSubscription? _stateSubscription;
   StreamSubscription? _textSubscription;
+
+  /// 获取当前状态
+  SpeechState get currentState => _ref.read(speechStateProvider);
+
+  /// 获取最后的错误类型
+  SpeechRecognitionErrorType get lastErrorType => _lastErrorType;
+
+  /// 状态转换方法 - 确保状态转换的正确性和清理
+  void _transitionTo(SpeechState newState, {SpeechRecognitionErrorType? errorType}) {
+    final oldState = _ref.read(speechStateProvider);
+    
+    if (kDebugMode) {
+      print('[VoiceBookkeeping] State transition: $oldState -> $newState');
+    }
+
+    // 清理前一个状态
+    _cleanupCurrentState(oldState);
+
+    // 设置新状态
+    _ref.read(speechStateProvider.notifier).state = newState;
+
+    // 初始化新状态
+    _initializeNewState(newState, errorType: errorType);
+  }
+
+  /// 清理当前状态
+  void _cleanupCurrentState(SpeechState state) {
+    switch (state) {
+      case SpeechState.listening:
+        _cleanupListeningState();
+        break;
+      case SpeechState.processing:
+        _cleanupProcessingState();
+        break;
+      case SpeechState.error:
+        _cleanupErrorState();
+        break;
+      default:
+        break;
+    }
+  }
+
+  /// 初始化新状态
+  void _initializeNewState(SpeechState state, {SpeechRecognitionErrorType? errorType}) {
+    switch (state) {
+      case SpeechState.idle:
+        _initializeIdleState();
+        break;
+      case SpeechState.error:
+        _initializeErrorState(errorType ?? SpeechRecognitionErrorType.unknown);
+        break;
+      case SpeechState.success:
+        _initializeSuccessState();
+        break;
+      default:
+        break;
+    }
+  }
+
+  /// 清理录音状态
+  void _cleanupListeningState() {
+    _isRecording = false;
+    _ref.read(recordingStartTimeProvider.notifier).state = null;
+  }
+
+  /// 清理处理状态
+  void _cleanupProcessingState() {
+    // 处理状态通常不需要特殊清理
+  }
+
+  /// 清理错误状态
+  void _cleanupErrorState() {
+    _lastErrorType = SpeechRecognitionErrorType.none;
+  }
+
+  /// 初始化空闲状态
+  void _initializeIdleState() {
+    _isRecording = false;
+    _isProcessingAction = false;
+    _retryCount = 0;
+    _ref.read(recognizedTextProvider.notifier).state = '';
+    _ref.read(parsedResultsProvider.notifier).state = [];
+    _ref.read(showBatchConfirmationTriggerProvider.notifier).state = false;
+    _ref.read(batchSaveFailedRecordsProvider.notifier).state = [];
+    _ref.read(voiceErrorMessageProvider.notifier).state = null;
+    _ref.read(recordingStartTimeProvider.notifier).state = null;
+  }
+
+  /// 初始化错误状态
+  void _initializeErrorState(SpeechRecognitionErrorType errorType) {
+    _lastErrorType = errorType;
+    _isRecording = false;
+    _isProcessingAction = false;
+    _ref.read(recordingStartTimeProvider.notifier).state = null;
+  }
+
+  /// 初始化成功状态
+  void _initializeSuccessState() {
+    _isRecording = false;
+    _isProcessingAction = false;
+    _retryCount = 0;
+  }
+
+  /// 检查是否可以执行操作（防抖）
+  bool _canPerformAction() {
+    if (_isProcessingAction) {
+      if (kDebugMode) {
+        print('[VoiceBookkeeping] Action blocked: already processing');
+      }
+      return false;
+    }
+    return true;
+  }
+
+  /// 开始处理操作
+  void _startProcessingAction() {
+    _isProcessingAction = true;
+  }
+
+  /// 结束处理操作
+  void _endProcessingAction() {
+    _isProcessingAction = false;
+  }
 
   /// 检查 LLM 是否已配置
   Future<bool> _checkLlmConfiguration() async {
@@ -97,16 +239,35 @@ class VoiceBookkeepingController {
 
   /// 开始录音
   /// 初始化语音识别并开始监听
-  Future<void> startRecording() async {
-    // 防止重复启动
-    if (_isRecording) return;
+  Future<bool> startRecording() async {
+    // 防抖检查
+    if (!_canPerformAction()) {
+      if (kDebugMode) {
+        print('[VoiceBookkeeping] startRecording blocked by debounce');
+      }
+      return false;
+    }
 
-    // 清除之前的错误
-    clearError();
+    // 防止重复启动
+    if (_isRecording) {
+      if (kDebugMode) {
+        print('[VoiceBookkeeping] Already recording, ignoring');
+      }
+      return false;
+    }
+
+    _startProcessingAction();
 
     try {
-      _isRecording = true;
-      _ref.read(speechStateProvider.notifier).state = SpeechState.processing;
+      // 转换到初始化状态
+      _transitionTo(SpeechState.initializing);
+      
+      // 重置状态
+      _ref.read(recognizedTextProvider.notifier).state = '';
+      _ref.read(parsedResultsProvider.notifier).state = [];
+      _ref.read(showBatchConfirmationTriggerProvider.notifier).state = false;
+      _ref.read(batchSaveFailedRecordsProvider.notifier).state = [];
+      _ref.read(voiceErrorMessageProvider.notifier).state = null;
 
       // 检查是否使用百度语音
       final useBaidu = _baiduSpeechService != null && _baiduSpeechService.isConfigured;
@@ -119,22 +280,17 @@ class VoiceBookkeepingController {
         // 使用百度语音识别
         final success = await _baiduSpeechService.startRecording();
         if (!success) {
-          _ref.read(voiceErrorMessageProvider.notifier).state =
-              '无法开始录音，请检查麦克风权限';
-          _ref.read(speechStateProvider.notifier).state = SpeechState.error;
-          _isRecording = false;
-          return;
+          _setErrorState(
+            '无法开始录音，请检查麦克风权限',
+            SpeechRecognitionErrorType.permissionDenied,
+          );
+          return false;
         }
 
-        // 重置状态
-        _ref.read(recognizedTextProvider.notifier).state = '';
-        _ref.read(parsedResultsProvider.notifier).state = [];
+        _isRecording = true;
         _ref.read(recordingStartTimeProvider.notifier).state = DateTime.now();
-        _ref.read(showBatchConfirmationTriggerProvider.notifier).state = false;
-        _ref.read(batchSaveFailedRecordsProvider.notifier).state = [];
-
-        _ref.read(speechStateProvider.notifier).state = SpeechState.listening;
-        return;
+        _transitionTo(SpeechState.listening);
+        return true;
       }
 
       // 使用 Google 语音识别
@@ -151,49 +307,16 @@ class VoiceBookkeepingController {
 
       if (!initialized) {
         final errorCause = _speechService.lastErrorCause;
-        String errorMessage;
-
-        if (kDebugMode) {
-          print('[VoiceBookkeeping] Initialization failed!');
-          print('[VoiceBookkeeping] Error cause: $errorCause');
-          print('[VoiceBookkeeping] _speechService.isInitialized: ${_speechService.isInitialized}');
-        }
-
-        switch (errorCause) {
-          case services.SpeechInitErrorCause.permissionDenied:
-            errorMessage = '麦克风权限被拒绝，请前往系统设置中开启麦克风权限';
-            break;
-          case services.SpeechInitErrorCause.deviceNotSupported:
-            errorMessage = '您的设备不支持语音识别功能';
-            break;
-          case services.SpeechInitErrorCause.serviceNotAvailable:
-            errorMessage = '语音识别服务暂不可用，请检查网络连接后重试\n（语音识别需要连接 Google 服务）';
-            break;
-          case services.SpeechInitErrorCause.unknown:
-          default:
-            errorMessage = '语音识别初始化失败，请重试';
-        }
-
-        if (kDebugMode) {
-          print('[VoiceBookkeeping] Initialization failed: $errorMessage, cause: $errorCause');
-        }
-
-        _ref.read(voiceErrorMessageProvider.notifier).state = errorMessage;
-        _ref.read(speechStateProvider.notifier).state = SpeechState.error;
-        _isRecording = false;
-        return;
+        _handleInitializationError(errorCause);
+        return false;
       }
 
       if (kDebugMode) {
         print('[VoiceBookkeeping] Initialization successful, starting to listen...');
       }
 
-      // 重置状态
-      _ref.read(recognizedTextProvider.notifier).state = '';
-      _ref.read(parsedResultsProvider.notifier).state = [];
+      _isRecording = true;
       _ref.read(recordingStartTimeProvider.notifier).state = DateTime.now();
-      _ref.read(showBatchConfirmationTriggerProvider.notifier).state = false;
-      _ref.read(batchSaveFailedRecordsProvider.notifier).state = [];
 
       // 取消之前的订阅（防止内存泄漏）
       await _stateSubscription?.cancel();
@@ -203,18 +326,19 @@ class VoiceBookkeepingController {
       _stateSubscription = _speechService.stateStream.listen((state) {
         switch (state) {
           case services.SpeechState.listening:
-            _ref.read(speechStateProvider.notifier).state = SpeechState.listening;
+            _transitionTo(SpeechState.listening);
             break;
           case services.SpeechState.idle:
             // 不在这里设置 idle，由 stopRecording 控制
             break;
           case services.SpeechState.error:
-            _ref.read(voiceErrorMessageProvider.notifier).state =
-                '语音识别出错，请重试';
-            _ref.read(speechStateProvider.notifier).state = SpeechState.error;
+            _setErrorState(
+              '语音识别出错，请重试',
+              SpeechRecognitionErrorType.unknown,
+            );
             break;
           case services.SpeechState.processing:
-            _ref.read(speechStateProvider.notifier).state = SpeechState.processing;
+            _transitionTo(SpeechState.processing);
             break;
         }
       });
@@ -227,23 +351,74 @@ class VoiceBookkeepingController {
       });
 
       await _speechService.startListening();
+      return true;
     } catch (e) {
       if (kDebugMode) {
         print('Start recording error: $e');
       }
-      _ref.read(voiceErrorMessageProvider.notifier).state =
-          '启动录音失败: $e';
-      _ref.read(speechStateProvider.notifier).state = SpeechState.error;
-      _isRecording = false;
+      _setErrorState(
+        '启动录音失败: $e',
+        SpeechRecognitionErrorType.unknown,
+      );
+      return false;
+    } finally {
+      _endProcessingAction();
     }
+  }
+
+  /// 处理初始化错误
+  void _handleInitializationError(services.SpeechInitErrorCause? errorCause) {
+    String errorMessage;
+    SpeechRecognitionErrorType errorType;
+
+    if (kDebugMode) {
+      print('[VoiceBookkeeping] Initialization failed!');
+      print('[VoiceBookkeeping] Error cause: $errorCause');
+    }
+
+    switch (errorCause) {
+      case services.SpeechInitErrorCause.permissionDenied:
+        errorMessage = '麦克风权限被拒绝，请前往系统设置中开启麦克风权限';
+        errorType = SpeechRecognitionErrorType.permissionDenied;
+        break;
+      case services.SpeechInitErrorCause.deviceNotSupported:
+        errorMessage = '您的设备不支持语音识别功能';
+        errorType = SpeechRecognitionErrorType.initializationFailed;
+        break;
+      case services.SpeechInitErrorCause.serviceNotAvailable:
+        errorMessage = '语音识别服务暂不可用，请检查网络连接后重试\n（语音识别需要连接 Google 服务）';
+        errorType = SpeechRecognitionErrorType.networkError;
+        break;
+      case services.SpeechInitErrorCause.unknown:
+      default:
+        errorMessage = '语音识别初始化失败，请重试';
+        errorType = SpeechRecognitionErrorType.initializationFailed;
+    }
+
+    _setErrorState(errorMessage, errorType);
+  }
+
+  /// 设置错误状态
+  void _setErrorState(String message, SpeechRecognitionErrorType errorType) {
+    _ref.read(voiceErrorMessageProvider.notifier).state = message;
+    _transitionTo(SpeechState.error, errorType: errorType);
+    _isRecording = false;
   }
 
   /// 停止录音
   /// 结束语音识别并触发解析
   Future<void> stopRecording() async {
-    if (!_isRecording) return;
+    if (!_isRecording) {
+      if (kDebugMode) {
+        print('[VoiceBookkeeping] stopRecording: not recording, ignoring');
+      }
+      return;
+    }
 
     try {
+      // 转换到处理状态
+      _transitionTo(SpeechState.processing);
+
       // 检查是否使用百度语音
       final useBaidu = _baiduSpeechService != null && _baiduSpeechService.isConfigured;
 
@@ -252,56 +427,77 @@ class VoiceBookkeepingController {
         final result = await _baiduSpeechService.stopRecordingAndRecognize();
         _ref.read(recordingStartTimeProvider.notifier).state = null;
         
-        if (result.success && result.text != null) {
+        if (result.success && result.text != null && result.text!.isNotEmpty) {
           _ref.read(recognizedTextProvider.notifier).state = result.text!;
-          _ref.read(speechStateProvider.notifier).state = SpeechState.processing;
           
           if (kDebugMode) {
             print('[VoiceBookkeeping] Baidu recognition result: ${result.text}');
           }
         } else {
-          // 识别失败
-          String errorMsg = '语音识别失败';
-          switch (result.errorType) {
-            case BaiduSpeechErrorType.notConfigured:
-              errorMsg = '百度语音识别未配置，请在设置中配置';
-              break;
-            case BaiduSpeechErrorType.networkError:
-              errorMsg = '网络错误，请检查网络连接';
-              break;
-            case BaiduSpeechErrorType.authError:
-              errorMsg = '百度语音认证失败，请检查 API Key';
-              break;
-            case BaiduSpeechErrorType.permissionDenied:
-              errorMsg = '麦克风权限被拒绝';
-              break;
-            case BaiduSpeechErrorType.recordingError:
-              errorMsg = result.errorMessage ?? '录音失败';
-              break;
-            case BaiduSpeechErrorType.recognitionError:
-              errorMsg = result.errorMessage ?? '识别失败';
-              break;
-            default:
-              errorMsg = result.errorMessage ?? '语音识别失败';
-          }
-          
-          _ref.read(voiceErrorMessageProvider.notifier).state = errorMsg;
-          _ref.read(speechStateProvider.notifier).state = SpeechState.error;
+          // 识别失败或无结果
+          _handleBaiduRecognitionError(result);
         }
       } else {
         // 使用 Google 语音识别
         await _speechService.stopListening();
         _ref.read(recordingStartTimeProvider.notifier).state = null;
         // 保持 processing 状态，等待解析完成
-        _ref.read(speechStateProvider.notifier).state = SpeechState.processing;
       }
     } catch (e) {
-      _ref.read(voiceErrorMessageProvider.notifier).state =
-          '停止录音失败: $e';
-      _ref.read(speechStateProvider.notifier).state = SpeechState.error;
+      if (kDebugMode) {
+        print('Stop recording error: $e');
+      }
+      _setErrorState(
+        '停止录音失败: $e',
+        SpeechRecognitionErrorType.unknown,
+      );
     } finally {
       _isRecording = false;
     }
+  }
+
+  /// 处理百度识别错误
+  void _handleBaiduRecognitionError(BaiduSpeechResult result) {
+    String errorMsg;
+    SpeechRecognitionErrorType errorType;
+
+    switch (result.errorType) {
+      case BaiduSpeechErrorType.notConfigured:
+        errorMsg = '百度语音识别未配置，请在设置中配置';
+        errorType = SpeechRecognitionErrorType.initializationFailed;
+        break;
+      case BaiduSpeechErrorType.networkError:
+        errorMsg = '网络错误，请检查网络连接';
+        errorType = SpeechRecognitionErrorType.networkError;
+        break;
+      case BaiduSpeechErrorType.authError:
+        errorMsg = '百度语音认证失败，请检查 API Key';
+        errorType = SpeechRecognitionErrorType.initializationFailed;
+        break;
+      case BaiduSpeechErrorType.permissionDenied:
+        errorMsg = '麦克风权限被拒绝';
+        errorType = SpeechRecognitionErrorType.permissionDenied;
+        break;
+      case BaiduSpeechErrorType.recordingError:
+        errorMsg = result.errorMessage ?? '录音失败';
+        errorType = SpeechRecognitionErrorType.unknown;
+        break;
+      case BaiduSpeechErrorType.recognitionError:
+        errorMsg = result.errorMessage ?? '识别失败';
+        errorType = SpeechRecognitionErrorType.unknown;
+        break;
+      default:
+        // 检查是否是空结果
+        if (result.text == null || result.text!.isEmpty) {
+          errorMsg = '未检测到语音，请重试';
+          errorType = SpeechRecognitionErrorType.noSpeechDetected;
+        } else {
+          errorMsg = result.errorMessage ?? '语音识别失败';
+          errorType = SpeechRecognitionErrorType.unknown;
+        }
+    }
+
+    _setErrorState(errorMsg, errorType);
   }
 
   /// 解析语音输入
@@ -310,20 +506,20 @@ class VoiceBookkeepingController {
   Future<void> parseVoiceInput() async {
     final text = _ref.read(recognizedTextProvider);
     if (text.isEmpty) {
-      _ref.read(voiceErrorMessageProvider.notifier).state =
-          '未识别到语音内容，请重试';
-      _ref.read(speechStateProvider.notifier).state = SpeechState.idle;
+      _setErrorState(
+        '未识别到语音内容，请重试',
+        SpeechRecognitionErrorType.noSpeechDetected,
+      );
       return;
     }
 
     // 检查 LLM 配置
     if (!await _checkLlmConfiguration()) {
-      _ref.read(speechStateProvider.notifier).state = SpeechState.error;
+      _transitionTo(SpeechState.error, errorType: SpeechRecognitionErrorType.parsingFailed);
       return;
     }
 
-    _ref.read(speechStateProvider.notifier).state = SpeechState.processing;
-    clearError();
+    _transitionTo(SpeechState.processing);
 
     try {
       // 从数据库读取分类列表
@@ -357,8 +553,10 @@ class VoiceBookkeepingController {
       // 检查解析结果是否包含错误信息
       if (results.isNotEmpty && results.first.note != null && 
           results.first.note!.contains('未配置')) {
-        _ref.read(voiceErrorMessageProvider.notifier).state = results.first.note;
-        _ref.read(speechStateProvider.notifier).state = SpeechState.error;
+        _setErrorState(
+          results.first.note!,
+          SpeechRecognitionErrorType.parsingFailed,
+        );
         return;
       }
 
@@ -366,9 +564,10 @@ class VoiceBookkeepingController {
       final validResults = results.where((r) => r.amount != null).toList();
       
       if (validResults.isEmpty) {
-        _ref.read(voiceErrorMessageProvider.notifier).state =
-            results.first.note ?? '无法解析金额，请手动输入';
-        _ref.read(speechStateProvider.notifier).state = SpeechState.error;
+        _setErrorState(
+          results.first.note ?? '无法解析金额，请手动输入',
+          SpeechRecognitionErrorType.parsingFailed,
+        );
         return;
       }
 
@@ -376,21 +575,16 @@ class VoiceBookkeepingController {
 
       // 触发显示批量确认弹窗
       _ref.read(showBatchConfirmationTriggerProvider.notifier).state = true;
+      
+      // 解析成功后保持 processing 状态，弹窗继续显示直到用户确认或取消
     } catch (e) {
       if (kDebugMode) {
         print('Parse voice input error: $e');
       }
-      _ref.read(voiceErrorMessageProvider.notifier).state =
-          '解析失败: $e\n请检查 API 配置或手动输入';
-      _ref.read(speechStateProvider.notifier).state = SpeechState.error;
-    } finally {
-      // 只有在出错时才设置为 error
-      final hasError = _ref.read(voiceErrorMessageProvider) != null;
-      if (hasError) {
-        _ref.read(speechStateProvider.notifier).state = SpeechState.error;
-      } else {
-        _ref.read(speechStateProvider.notifier).state = SpeechState.idle;
-      }
+      _setErrorState(
+        '解析失败: $e\n请检查 API 配置或手动输入',
+        SpeechRecognitionErrorType.parsingFailed,
+      );
     }
   }
 
@@ -486,27 +680,38 @@ class VoiceBookkeepingController {
   /// 取消录音
   /// 放弃当前识别结果
   Future<void> cancelRecording() async {
-    if (!_isRecording) return;
+    if (!_isRecording) {
+      // 即使不在录音，也要确保状态正确重置
+      _transitionTo(SpeechState.cancelled);
+      _transitionTo(SpeechState.idle);
+      return;
+    }
 
     try {
-      await _speechService.cancelListening();
+      // 检查是否使用百度语音
+      final useBaidu = _baiduSpeechService != null && _baiduSpeechService.isConfigured;
+      
+      if (useBaidu) {
+        await _baiduSpeechService.cancelRecording();
+      } else {
+        await _speechService.cancelListening();
+      }
     } catch (e) {
-      // 忽略取消时的错误
+      if (kDebugMode) {
+        print('Cancel recording error: $e');
+      }
     } finally {
       _isRecording = false;
-      _ref.read(recordingStartTimeProvider.notifier).state = null;
-      _ref.read(recognizedTextProvider.notifier).state = '';
-      _ref.read(parsedResultsProvider.notifier).state = [];
-      _ref.read(showBatchConfirmationTriggerProvider.notifier).state = false;
-      _ref.read(batchSaveFailedRecordsProvider.notifier).state = [];
-      _ref.read(speechStateProvider.notifier).state = SpeechState.idle;
-      clearError();
-
+      
       // 取消订阅
       await _stateSubscription?.cancel();
       await _textSubscription?.cancel();
       _stateSubscription = null;
       _textSubscription = null;
+
+      // 转换到取消状态，然后到空闲状态
+      _transitionTo(SpeechState.cancelled);
+      _transitionTo(SpeechState.idle);
     }
   }
 
@@ -520,6 +725,10 @@ class VoiceBookkeepingController {
   /// 重置所有状态
   /// 用于错误恢复或重新开始
   void reset() {
+    if (kDebugMode) {
+      print('[VoiceBookkeeping] Reset called, current state: ${_ref.read(speechStateProvider)}');
+    }
+
     // 取消订阅
     _stateSubscription?.cancel();
     _textSubscription?.cancel();
@@ -528,17 +737,47 @@ class VoiceBookkeepingController {
     
     // 重置内部状态
     _isRecording = false;
+    _isProcessingAction = false;
+    _retryCount = 0;
+    _lastErrorType = SpeechRecognitionErrorType.none;
     
-    // 重置 Provider 状态
-    _ref.read(speechStateProvider.notifier).state = SpeechState.idle;
-    _ref.read(recognizedTextProvider.notifier).state = '';
-    _ref.read(voiceErrorMessageProvider.notifier).state = null;
-    _ref.read(recordingStartTimeProvider.notifier).state = null;
-    _ref.read(showBatchConfirmationTriggerProvider.notifier).state = false;
-    _ref.read(parsedResultsProvider.notifier).state = [];
-    _ref.read(batchSaveFailedRecordsProvider.notifier).state = [];
-    
-    clearError();
+    // 使用状态转换方法重置
+    _transitionTo(SpeechState.idle);
+  }
+
+  /// 从错误状态恢复
+  /// 用于在错误后准备重新开始
+  Future<void> recoverFromError() async {
+    if (kDebugMode) {
+      print('[VoiceBookkeeping] Recovering from error: $_lastErrorType');
+    }
+
+    // 根据错误类型决定是否可以自动重试
+    switch (_lastErrorType) {
+      case SpeechRecognitionErrorType.networkError:
+        // 网络错误可以自动重试
+        if (_retryCount < _maxRetryCount) {
+          _retryCount++;
+          await Future.delayed(const Duration(seconds: 1));
+          reset();
+          return;
+        }
+        break;
+      case SpeechRecognitionErrorType.initializationFailed:
+        // 初始化失败可以尝试重试
+        if (_retryCount < _maxRetryCount) {
+          _retryCount++;
+          await Future.delayed(const Duration(milliseconds: 500));
+          reset();
+          return;
+        }
+        break;
+      default:
+        // 其他错误直接重置
+        break;
+    }
+
+    reset();
   }
 }
 

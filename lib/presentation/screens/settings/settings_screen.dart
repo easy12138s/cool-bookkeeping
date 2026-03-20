@@ -5,6 +5,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../providers/settings_provider.dart';
 import '../category/category_management_screen.dart';
 
+/// 应用版本号（与 pubspec.yaml 保持同步）
+const String kAppVersion = '1.1.0';
+
 /// 设置页面
 /// 管理应用配置和系统设置
 class SettingsScreen extends ConsumerWidget {
@@ -254,7 +257,7 @@ class SettingsScreen extends ConsumerWidget {
     return ListTile(
       leading: const Icon(Icons.info),
       title: const Text('关于'),
-      subtitle: const Text('版本 1.0.0'),
+      subtitle: Text('版本 $kAppVersion'),
       onTap: () => _showAboutDialog(context),
     );
   }
@@ -557,19 +560,59 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('关于酷记'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('酷记 - 智能语音记账应用'),
-            SizedBox(height: 8),
-            Text('版本: 1.0.0'),
-            SizedBox(height: 16),
-            Text(
-              '通过语音识别技术，让记账变得更加简单快捷。只需说出消费内容，即可自动识别并记录。',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '酷记 - 智能语音记账应用',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '版本: $kAppVersion',
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 16),
+              _buildHelpSection(
+                '🚀 快速开始',
+                '长按底部导航栏的麦克风按钮，说出消费内容即可自动记账。例如："早餐花了15元"或"今天工资到账8000元"。',
+              ),
+              const SizedBox(height: 12),
+              _buildHelpSection(
+                '🎤 语音识别配置',
+                '本应用支持百度语音识别服务。配置步骤：\n'
+                '1. 访问百度智能云控制台\n'
+                '2. 创建语音识别应用\n'
+                '3. 获取 App ID、API Key、Secret Key\n'
+                '4. 在本页面填入对应配置项\n\n'
+                '提示：如未配置百度语音，将使用系统自带的语音识别（需要 Google 服务支持）。',
+              ),
+              const SizedBox(height: 12),
+              _buildHelpSection(
+                '🤖 大模型配置',
+                '本应用使用大语言模型解析语音内容。配置步骤：\n'
+                '1. 准备一个兼容 OpenAI API 的服务\n'
+                '2. 获取 API Key\n'
+                '3. 在本页面配置 API Key 和 Base URL\n'
+                '4. 选择合适的模型名称\n\n'
+                '推荐模型：qwen3.5-plus、gpt-4o-mini 等',
+              ),
+              const SizedBox(height: 12),
+              _buildHelpSection(
+                '💡 使用技巧',
+                '• 一次可说出多条记账："早餐15元，午餐25元"\n'
+                '• 支持收入记录："工资到账8000元"\n'
+                '• 可指定类别："打车花了30元"\n'
+                '• 录音最长15秒，松手自动结束',
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -578,6 +621,31 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+
+  /// 构建帮助说明区块
+  Widget _buildHelpSection(String title, String content) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            color: AppColors.brandPrimary,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          content,
+          style: const TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 13,
+            height: 1.5,
+          ),
+        ),
+      ],
     );
   }
 }

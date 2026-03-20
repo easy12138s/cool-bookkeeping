@@ -117,7 +117,9 @@ class _VoiceButtonState extends ConsumerState<VoiceButton>
   Widget build(BuildContext context) {
     final speechState = ref.watch(speechStateProvider);
     final isRecording = speechState == SpeechState.listening;
-    final isProcessing = speechState == SpeechState.processing;
+    final isProcessing = speechState == SpeechState.processing || 
+                         speechState == SpeechState.initializing;
+    final hasError = speechState == SpeechState.error;
 
     // 监听错误信息并显示提示
     ref.listen<String?>(voiceErrorMessageProvider, (previous, next) {
@@ -165,11 +167,13 @@ class _VoiceButtonState extends ConsumerState<VoiceButton>
                   height: 72,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: isProcessing
-                        ? AppColors.brandSecondary
-                        : isRecording
-                            ? AppColors.error
-                            : AppColors.brandPrimary,
+                    color: hasError
+                        ? AppColors.error
+                        : isProcessing
+                            ? AppColors.brandSecondary
+                            : isRecording
+                                ? AppColors.error
+                                : AppColors.brandPrimary,
                     boxShadow: [
                       if (isRecording)
                         BoxShadow(
@@ -201,7 +205,7 @@ class _VoiceButtonState extends ConsumerState<VoiceButton>
                             ),
                           )
                         : Icon(
-                            isRecording ? Icons.mic : Icons.mic_none,
+                            hasError ? Icons.error_outline : (isRecording ? Icons.mic : Icons.mic_none),
                             size: 32,
                             color: Colors.white,
                           ),
@@ -213,16 +217,20 @@ class _VoiceButtonState extends ConsumerState<VoiceButton>
         ),
         const SizedBox(height: 8),
         Text(
-          isRecording
-              ? '松手完成'
-              : isProcessing
-                  ? '处理中...'
-                  : '长按说话',
+          hasError
+              ? '出错了，重试'
+              : isRecording
+                  ? '松手完成'
+                  : isProcessing
+                      ? '处理中...'
+                      : '长按说话',
           style: TextStyle(
             fontSize: 12,
-            color: isRecording
+            color: hasError
                 ? AppColors.error
-                : AppColors.textSecondary,
+                : isRecording
+                    ? AppColors.error
+                    : AppColors.textSecondary,
           ),
         ),
       ],
