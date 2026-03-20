@@ -187,30 +187,32 @@ class WeeklySummaryCard extends ConsumerWidget {
           ),
         ),
         AppSpacing.width(context, 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: AppTextStyles.getBodyMedium(context).copyWith(
-                color: Colors.white.withValues(alpha: 0.8),
-              ),
-            ),
-            AppSpacing.height(context, 2),
-            // 使用更小的字体显示收入/支出金额，防止溢出
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '¥${amount.toStringAsFixed(2)}',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 16, // 固定小字体，配合 FittedBox 自动缩放
+        Flexible(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: AppTextStyles.getBodyMedium(context).copyWith(
+                    color: Colors.white.withValues(alpha: 0.8),
+                  ),
                 ),
-              ),
+                AppSpacing.height(context, 2),
+                Text(
+                  '¥${amount.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ],
     );
