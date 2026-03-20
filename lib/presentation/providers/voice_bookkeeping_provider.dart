@@ -326,9 +326,26 @@ class VoiceBookkeepingController {
     clearError();
 
     try {
-      // 获取分类列表
-      final expenseCategories = ['餐饮', '交通', '购物', '娱乐', '居住', '医疗', '教育', '其他'];
-      final incomeCategories = ['工资', '奖金', '投资', '兼职', '礼金', '其他'];
+      // 从数据库读取分类列表
+      final categoriesAsync = _ref.read(categoriesProvider);
+      final categories = categoriesAsync.valueOrNull ?? [];
+      
+      final expenseCategories = categories
+          .where((c) => c.type == 0 && c.isEnabled)
+          .map((c) => c.name)
+          .toList();
+      final incomeCategories = categories
+          .where((c) => c.type == 1 && c.isEnabled)
+          .map((c) => c.name)
+          .toList();
+
+      // 如果数据库为空，使用默认分类
+      if (expenseCategories.isEmpty) {
+        expenseCategories.addAll(['餐饮', '交通', '购物', '娱乐', '居住', '医疗', '教育', '其他']);
+      }
+      if (incomeCategories.isEmpty) {
+        incomeCategories.addAll(['工资', '奖金', '投资', '兼职', '礼金', '其他']);
+      }
 
       // 调用 LLM 解析（返回 List<ParsedResult>）
       final results = await _llmService.parseTransactions(
@@ -498,6 +515,30 @@ class VoiceBookkeepingController {
   void dispose() {
     _stateSubscription?.cancel();
     _textSubscription?.cancel();
+  }
+
+  /// 重置所有状态
+  /// 用于错误恢复或重新开始
+  void reset() {
+    // 取消订阅
+    _stateSubscription?.cancel();
+    _textSubscription?.cancel();
+    _stateSubscription = null;
+    _textSubscription = null;
+    
+    // 重置内部状态
+    _isRecording = false;
+    
+    // 重置 Provider 状态
+    _ref.read(speechStateProvider.notifier).state = SpeechState.idle;
+    _ref.read(recognizedTextProvider.notifier).state = '';
+    _ref.read(voiceErrorMessageProvider.notifier).state = null;
+    _ref.read(recordingStartTimeProvider.notifier).state = null;
+    _ref.read(showBatchConfirmationTriggerProvider.notifier).state = false;
+    _ref.read(parsedResultsProvider.notifier).state = [];
+    _ref.read(batchSaveFailedRecordsProvider.notifier).state = [];
+    
+    clearError();
   }
 }
 

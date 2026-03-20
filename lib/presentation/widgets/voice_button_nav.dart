@@ -10,7 +10,7 @@ import '../../core/theme/responsive.dart';
 import '../../core/utils/permission_utils.dart';
 import '../providers/voice_bookkeeping_provider.dart';
 import 'top_notification.dart';
-import 'voice_recognition_sheet.dart';
+import 'voice_status_tooltip.dart';
 
 /// 导航栏语音按钮
 /// 嵌入底部导航栏的紧凑版本
@@ -25,6 +25,7 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _pulseController;
   bool _isStarting = false;
+  bool _isStopping = false; // 添加标志位，防止正常结束时触发取消
   Timer? _recordingTimer;
   int _recordingSeconds = 0;
   bool _wasPaused = false;
@@ -36,7 +37,6 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
-    // 注册应用生命周期监听
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -44,26 +44,20 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
   void dispose() {
     _pulseController.dispose();
     _recordingTimer?.cancel();
-    // 移除应用生命周期监听
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // 监听应用生命周期变化
     if (state == AppLifecycleState.paused) {
-      // 应用进入后台（可能是去设置页了）
       _wasPaused = true;
     } else if (state == AppLifecycleState.resumed && _wasPaused) {
-      // 应用从后台返回
       _wasPaused = false;
-      // 重新检查权限状态，但不显示弹窗
       _refreshPermissionStatus();
     }
   }
 
-  /// 刷新权限状态（静默检查，不显示弹窗）
   void _refreshPermissionStatus() async {
     final status = await Permission.microphone.status;
     if (kDebugMode) {
@@ -79,12 +73,11 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
       print('[VoiceButtonNav] Starting recording...');
     }
 
-    // 请求麦克风权限
     final hasPermission = await PermissionUtils.handleMicrophonePermission(context);
     if (kDebugMode) {
       print('[VoiceButtonNav] Permission result: $hasPermission');
     }
-    
+
     if (!hasPermission) {
       if (kDebugMode) {
         print('[VoiceButtonNav] Permission denied, aborting');
@@ -93,18 +86,10 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
       return;
     }
 
-    // 清除之前的错误
-    ref.read(voiceErrorMessageProvider.notifier).state = null;
-
-    // 显示语音识别底部弹窗
-    if (mounted) {
-      if (kDebugMode) {
-        print('[VoiceButtonNav] Showing voice recognition sheet');
-      }
-      showVoiceRecognitionSheet(context);
-    }
-
+    // 重置状态
     final controller = ref.read(voiceBookkeepingControllerProvider);
+    controller.reset();
+
     if (kDebugMode) {
       print('[VoiceButtonNav] Calling startRecording');
     }
@@ -118,15 +103,13 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
     _isStarting = false;
   }
 
-  /// 启动录音计时器
-  /// 限制最大录音时长为15秒
   void _startRecordingTimer() {
     _recordingSeconds = 0;
     _recordingTimer?.cancel();
     _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       _recordingSeconds++;
+      setState(() {}); // 更新 UI 显示时长
       if (_recordingSeconds >= 15) {
-        // 达到最大时长，自动停止录音
         timer.cancel();
         _stopRecording();
       }
@@ -134,6 +117,7 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
   }
 
   void _stopRecording() async {
+    _isStopping = true; // 标记为正常结束
     _recordingTimer?.cancel();
     _pulseController.stop();
     _pulseController.reset();
@@ -141,43 +125,39 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
     final controller = ref.read(voiceBookkeepingControllerProvider);
     await controller.stopRecording();
 
-    // 延迟关闭弹窗，让用户看到分析状态
-    await Future.delayed(const Duration(milliseconds: 1500));
-
     if (!mounted) return;
 
-    // 关闭语音识别弹窗
-    hideVoiceRecognitionSheet(context);
-
-    if (!mounted) return;
-
-    // 解析语音输入（添加 await 和错误处理）
+    // 解析语音输入
     try {
       await controller.parseVoiceInput();
     } catch (e) {
       if (kDebugMode) {
         print('Parse voice input error in button: $e');
       }
+      // 错误时重置状态
+      controller.reset();
     }
   }
 
   void _cancelRecording() {
+    // 如果是正常结束触发的取消，忽略
+    if (_isStopping) {
+      _isStopping = false;
+      return;
+    }
     _recordingTimer?.cancel();
     _pulseController.stop();
     _pulseController.reset();
 
     final controller = ref.read(voiceBookkeepingControllerProvider);
     controller.cancelRecording();
-
-    // 关闭语音识别弹窗
-    if (mounted) {
-      hideVoiceRecognitionSheet(context);
-    }
+    controller.reset();
   }
 
   @override
   Widget build(BuildContext context) {
     final speechState = ref.watch(speechStateProvider);
+    final recognizedText = ref.watch(recognizedTextProvider);
     final isRecording = speechState == SpeechState.listening;
     final isProcessing = speechState == SpeechState.processing;
 
@@ -185,90 +165,111 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
     ref.listen<String?>(voiceErrorMessageProvider, (previous, next) {
       if (next != null && next.isNotEmpty) {
         TopNotification.error(context, next);
+        // 错误显示后重置状态
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) {
+            ref.read(voiceBookkeepingControllerProvider).reset();
+          }
+        });
       }
     });
 
-    // 响应式按钮尺寸
+    // 响应式按钮尺寸（增大到 72px，便于长按操作）
     final buttonSize = ResponsiveSpacing.getResponsiveSpacing(
       context,
-      baseSpacing: 48.0,
+      baseSpacing: 72.0,
     );
 
-    // 响应式图标尺寸
+    // 响应式图标尺寸（增大到 32px）
     final iconSize = ResponsiveSpacing.getResponsiveSpacing(
       context,
-      baseSpacing: 24.0,
+      baseSpacing: 32.0,
     );
 
     // 响应式加载指示器尺寸
     final indicatorSize = ResponsiveSpacing.getResponsiveSpacing(
       context,
-      baseSpacing: 20.0,
+      baseSpacing: 28.0,
     );
 
-    return GestureDetector(
-      onLongPressStart: (_) => _startRecording(),
-      onLongPressEnd: (_) => _stopRecording(),
-      onLongPressCancel: () => _cancelRecording(),
-      child: AnimatedBuilder(
-        animation: _pulseController,
-        builder: (context, child) {
-          final scale = isRecording
-              ? 1.0 + (_pulseController.value * 0.1)
-              : 1.0;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        // 悬浮状态提示
+        if (isRecording || isProcessing)
+          VoiceStatusTooltip(
+            state: speechState,
+            recognizedText: recognizedText,
+            recordingSeconds: _recordingSeconds,
+            onCancel: isRecording ? _cancelRecording : null,
+          ),
 
-          return Transform.scale(
-            scale: scale,
-            child: Container(
-              width: buttonSize,
-              height: buttonSize,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isProcessing
-                    ? AppColors.brandSecondary
-                    : isRecording
-                        ? AppColors.error
-                        : AppColors.brandPrimary,
-                boxShadow: isRecording
-                    ? [
-                        BoxShadow(
-                          color: AppColors.error.withValues(
-                            alpha: 0.3 + (_pulseController.value * 0.3),
+        // 语音按钮
+        GestureDetector(
+          onLongPressStart: (_) => _startRecording(),
+          onLongPressEnd: (_) => _stopRecording(),
+          onLongPressCancel: () => _cancelRecording(),
+          child: AnimatedBuilder(
+            animation: _pulseController,
+            builder: (context, child) {
+              final scale = isRecording
+                  ? 1.0 + (_pulseController.value * 0.1)
+                  : 1.0;
+
+              return Transform.scale(
+                scale: scale,
+                child: Container(
+                  width: buttonSize,
+                  height: buttonSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isProcessing
+                        ? AppColors.brandSecondary
+                        : isRecording
+                            ? AppColors.error
+                            : AppColors.brandPrimary,
+                    boxShadow: isRecording
+                        ? [
+                            BoxShadow(
+                              color: AppColors.error.withValues(
+                                alpha: 0.3 + (_pulseController.value * 0.3),
+                              ),
+                              blurRadius: 12,
+                              spreadRadius: 2,
+                            ),
+                          ]
+                        : [
+                            BoxShadow(
+                              color: AppColors.brandPrimary.withValues(alpha: 0.3),
+                              blurRadius: 6,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                  ),
+                  child: Center(
+                    child: isProcessing
+                        ? SizedBox(
+                            width: indicatorSize,
+                            height: indicatorSize,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: const AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                        : Icon(
+                            isRecording ? Icons.mic : Icons.mic_none,
+                            size: iconSize,
+                            color: Colors.white,
                           ),
-                          blurRadius: 12,
-                          spreadRadius: 2,
-                        ),
-                      ]
-                    : [
-                        BoxShadow(
-                          color: AppColors.brandPrimary.withValues(alpha: 0.3),
-                          blurRadius: 6,
-                          spreadRadius: 1,
-                        ),
-                      ],
-              ),
-              child: Center(
-                child: isProcessing
-                    ? SizedBox(
-                        width: indicatorSize,
-                        height: indicatorSize,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            Colors.white,
-                          ),
-                        ),
-                      )
-                    : Icon(
-                        isRecording ? Icons.mic : Icons.mic_none,
-                        size: iconSize,
-                        color: Colors.white,
-                      ),
-              ),
-            ),
-          );
-        },
-      ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
