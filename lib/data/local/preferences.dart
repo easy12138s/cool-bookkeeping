@@ -7,6 +7,9 @@ class _PreferenceKeys {
   static const String modelName = 'model_name';
   static const String autoSaveEnabled = 'auto_save_enabled';
   static const String firstLaunch = 'first_launch';
+  static const String baiduSpeechAppId = 'baidu_speech_app_id';
+  static const String baiduSpeechApiKey = 'baidu_speech_api_key';
+  static const String baiduSpeechSecretKey = 'baidu_speech_secret_key';
 }
 
 /// 默认模型名称
@@ -81,5 +84,57 @@ class PreferencesService {
   /// 设置首次启动状态
   Future<void> setFirstLaunch(bool value) async {
     await _prefs.setBool(_PreferenceKeys.firstLaunch, value);
+  }
+
+  /// 获取百度语音 App ID
+  Future<String?> getBaiduSpeechAppId() async {
+    return _prefs.getString(_PreferenceKeys.baiduSpeechAppId);
+  }
+
+  /// 设置百度语音 App ID
+  Future<void> setBaiduSpeechAppId(String? value) async {
+    if (value == null) {
+      await _prefs.remove(_PreferenceKeys.baiduSpeechAppId);
+    } else {
+      await _prefs.setString(_PreferenceKeys.baiduSpeechAppId, value);
+    }
+  }
+
+  /// 获取百度语音 API Key
+  Future<String?> getBaiduSpeechApiKey() async {
+    return _prefs.getString(_PreferenceKeys.baiduSpeechApiKey);
+  }
+
+  /// 设置百度语音 API Key
+  Future<void> setBaiduSpeechApiKey(String? value) async {
+    if (value == null) {
+      await _prefs.remove(_PreferenceKeys.baiduSpeechApiKey);
+    } else {
+      await _prefs.setString(_PreferenceKeys.baiduSpeechApiKey, value);
+    }
+  }
+
+  /// 获取百度语音 Secret Key
+  Future<String?> getBaiduSpeechSecretKey() async {
+    return _prefs.getString(_PreferenceKeys.baiduSpeechSecretKey);
+  }
+
+  /// 设置百度语音 Secret Key
+  Future<void> setBaiduSpeechSecretKey(String? value) async {
+    if (value == null) {
+      await _prefs.remove(_PreferenceKeys.baiduSpeechSecretKey);
+    } else {
+      await _prefs.setString(_PreferenceKeys.baiduSpeechSecretKey, value);
+    }
+  }
+
+  /// 检查百度语音是否已配置
+  Future<bool> isBaiduSpeechConfigured() async {
+    final appId = await getBaiduSpeechAppId();
+    final apiKey = await getBaiduSpeechApiKey();
+    final secretKey = await getBaiduSpeechSecretKey();
+    return appId != null && appId.isNotEmpty &&
+           apiKey != null && apiKey.isNotEmpty &&
+           secretKey != null && secretKey.isNotEmpty;
   }
 }

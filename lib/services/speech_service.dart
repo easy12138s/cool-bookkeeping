@@ -143,7 +143,7 @@ class SpeechService {
           if (kDebugMode) {
             print('[SpeechService] Available locales: $available');
           }
-          if (available == null || available.isEmpty) {
+          if (available.isEmpty) {
             _lastErrorCause = SpeechInitErrorCause.deviceNotSupported;
             if (kDebugMode) {
               print('[SpeechService] No locales available - device not supported');

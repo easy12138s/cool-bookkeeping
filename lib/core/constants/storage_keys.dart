@@ -10,6 +10,9 @@ class StorageKeys {
   /// API 基础 URL
   static const String apiBaseUrl = 'api_base_url';
 
+  /// 模型名称
+  static const String modelName = 'model_name';
+
   /// 自动保存开关
   static const String autoSaveEnabled = 'auto_save_enabled';
 
@@ -21,4 +24,13 @@ class StorageKeys {
 
   /// 默认收入类别
   static const String defaultIncomeCategories = 'default_income_categories';
+
+  /// 百度语音 App ID
+  static const String baiduSpeechAppId = 'baidu_speech_app_id';
+
+  /// 百度语音 API Key
+  static const String baiduSpeechApiKey = 'baidu_speech_api_key';
+
+  /// 百度语音 Secret Key
+  static const String baiduSpeechSecretKey = 'baidu_speech_secret_key';
 }

@@ -10,7 +10,9 @@ import '../../data/repositories/categories_repository.dart';
 import '../../data/repositories/records_repository.dart';
 import '../../data/repositories/web_categories_repository.dart';
 import '../../data/repositories/web_records_repository.dart';
+import '../../services/baidu_speech_service.dart';
 import '../../services/services.dart';
+import 'settings_provider.dart';
 
 /// 数据库 Provider
 /// Web 平台返回 null，使用 shared_preferences 替代
@@ -89,6 +91,22 @@ final preferencesProvider = Provider<PreferencesService>((ref) {
 /// 提供语音识别服务单例
 final speechServiceProvider = Provider<SpeechService>((ref) {
   final service = SpeechService();
+  ref.onDispose(service.dispose);
+  return service;
+});
+
+/// 百度语音识别服务 Provider
+final baiduSpeechServiceProvider = Provider<BaiduSpeechService>((ref) {
+  final service = BaiduSpeechService();
+  
+  // 监听设置变化，自动配置百度语音服务
+  final settings = ref.watch(settingsProvider);
+  service.configure(
+    appId: settings.baiduSpeechAppId,
+    apiKey: settings.baiduSpeechApiKey,
+    secretKey: settings.baiduSpeechSecretKey,
+  );
+  
   ref.onDispose(service.dispose);
   return service;
 });

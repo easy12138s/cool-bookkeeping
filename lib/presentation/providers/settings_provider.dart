@@ -25,7 +25,28 @@ class SettingsState with _$SettingsState {
 
     /// 是否首次启动
     @Default(true) bool isFirstLaunch,
+
+    /// 百度语音 App ID
+    String? baiduSpeechAppId,
+
+    /// 百度语音 API Key
+    String? baiduSpeechApiKey,
+
+    /// 百度语音 Secret Key
+    String? baiduSpeechSecretKey,
   }) = _SettingsState;
+
+  const SettingsState._();
+
+  /// 检查 LLM API 是否已配置
+  bool get isLlmConfigured =>
+      apiKey != null && apiKey!.isNotEmpty;
+
+  /// 检查百度语音是否已配置
+  bool get isBaiduSpeechConfigured =>
+      baiduSpeechAppId != null && baiduSpeechAppId!.isNotEmpty &&
+      baiduSpeechApiKey != null && baiduSpeechApiKey!.isNotEmpty &&
+      baiduSpeechSecretKey != null && baiduSpeechSecretKey!.isNotEmpty;
 }
 
 /// Settings Notifier
@@ -46,6 +67,9 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       final modelName = await _preferences.getModelName();
       final autoSaveEnabled = await _preferences.getAutoSaveEnabled();
       final isFirstLaunch = await _preferences.isFirstLaunch();
+      final baiduSpeechAppId = await _preferences.getBaiduSpeechAppId();
+      final baiduSpeechApiKey = await _preferences.getBaiduSpeechApiKey();
+      final baiduSpeechSecretKey = await _preferences.getBaiduSpeechSecretKey();
 
       state = SettingsState(
         apiKey: apiKey,
@@ -53,6 +77,9 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
         modelName: modelName,
         autoSaveEnabled: autoSaveEnabled,
         isFirstLaunch: isFirstLaunch,
+        baiduSpeechAppId: baiduSpeechAppId,
+        baiduSpeechApiKey: baiduSpeechApiKey,
+        baiduSpeechSecretKey: baiduSpeechSecretKey,
       );
     } catch (e) {
       // 保持默认状态
@@ -92,6 +119,24 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   Future<void> markFirstLaunchComplete() async {
     await _preferences.setFirstLaunch(false);
     state = state.copyWith(isFirstLaunch: false);
+  }
+
+  /// 设置百度语音 App ID
+  Future<void> setBaiduSpeechAppId(String? value) async {
+    await _preferences.setBaiduSpeechAppId(value);
+    state = state.copyWith(baiduSpeechAppId: value);
+  }
+
+  /// 设置百度语音 API Key
+  Future<void> setBaiduSpeechApiKey(String? value) async {
+    await _preferences.setBaiduSpeechApiKey(value);
+    state = state.copyWith(baiduSpeechApiKey: value);
+  }
+
+  /// 设置百度语音 Secret Key
+  Future<void> setBaiduSpeechSecretKey(String? value) async {
+    await _preferences.setBaiduSpeechSecretKey(value);
+    state = state.copyWith(baiduSpeechSecretKey: value);
   }
 }
 

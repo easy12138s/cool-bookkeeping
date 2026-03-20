@@ -28,6 +28,13 @@ class SettingsScreen extends ConsumerWidget {
           _buildModelNameTile(context, ref, settings),
           const Divider(),
 
+          // 语音识别配置
+          _buildSectionHeader(context, '语音识别配置'),
+          _buildBaiduSpeechAppIdTile(context, ref, settings),
+          _buildBaiduSpeechApiKeyTile(context, ref, settings),
+          _buildBaiduSpeechSecretKeyTile(context, ref, settings),
+          const Divider(),
+
           // 记账设置
           _buildSectionHeader(context, '记账设置'),
           _buildAutoSaveTile(context, ref, settings),
@@ -137,6 +144,78 @@ class SettingsScreen extends ConsumerWidget {
       onChanged: (value) {
         ref.read(settingsProvider.notifier).setAutoSaveEnabled(value);
       },
+    );
+  }
+
+  /// 构建百度语音 App ID 设置项
+  Widget _buildBaiduSpeechAppIdTile(
+    BuildContext context,
+    WidgetRef ref,
+    SettingsState settings,
+  ) {
+    return ListTile(
+      leading: const Icon(Icons.app_registration),
+      title: const Text('App ID'),
+      subtitle: Text(
+        settings.baiduSpeechAppId != null && settings.baiduSpeechAppId!.isNotEmpty
+            ? '已配置'
+            : '未配置',
+        style: TextStyle(
+          color: settings.baiduSpeechAppId != null && settings.baiduSpeechAppId!.isNotEmpty
+              ? AppColors.success
+              : AppColors.textSecondary,
+        ),
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => _showBaiduSpeechAppIdDialog(context, ref, settings),
+    );
+  }
+
+  /// 构建百度语音 API Key 设置项
+  Widget _buildBaiduSpeechApiKeyTile(
+    BuildContext context,
+    WidgetRef ref,
+    SettingsState settings,
+  ) {
+    return ListTile(
+      leading: const Icon(Icons.vpn_key),
+      title: const Text('API Key'),
+      subtitle: Text(
+        settings.baiduSpeechApiKey != null && settings.baiduSpeechApiKey!.isNotEmpty
+            ? '已配置'
+            : '未配置',
+        style: TextStyle(
+          color: settings.baiduSpeechApiKey != null && settings.baiduSpeechApiKey!.isNotEmpty
+              ? AppColors.success
+              : AppColors.textSecondary,
+        ),
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => _showBaiduSpeechApiKeyDialog(context, ref, settings),
+    );
+  }
+
+  /// 构建百度语音 Secret Key 设置项
+  Widget _buildBaiduSpeechSecretKeyTile(
+    BuildContext context,
+    WidgetRef ref,
+    SettingsState settings,
+  ) {
+    return ListTile(
+      leading: const Icon(Icons.lock),
+      title: const Text('Secret Key'),
+      subtitle: Text(
+        settings.baiduSpeechSecretKey != null && settings.baiduSpeechSecretKey!.isNotEmpty
+            ? '已配置'
+            : '未配置',
+        style: TextStyle(
+          color: settings.baiduSpeechSecretKey != null && settings.baiduSpeechSecretKey!.isNotEmpty
+              ? AppColors.success
+              : AppColors.textSecondary,
+        ),
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => _showBaiduSpeechSecretKeyDialog(context, ref, settings),
     );
   }
 
@@ -295,6 +374,141 @@ class SettingsScreen extends ConsumerWidget {
               await ref
                   .read(settingsProvider.notifier)
                   .setModelName(value.isEmpty ? 'qwen3.5-plus' : value);
+              if (context.mounted) {
+                Navigator.of(context).pop();
+              }
+            },
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 显示百度语音 App ID 对话框
+  void _showBaiduSpeechAppIdDialog(
+    BuildContext context,
+    WidgetRef ref,
+    SettingsState settings,
+  ) {
+    final controller = TextEditingController(text: settings.baiduSpeechAppId ?? '');
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('设置 App ID'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                labelText: 'App ID',
+                hintText: '从百度云控制台获取',
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '请在百度智能云控制台创建语音识别应用',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final value = controller.text.trim();
+              await ref
+                  .read(settingsProvider.notifier)
+                  .setBaiduSpeechAppId(value.isEmpty ? null : value);
+              if (context.mounted) {
+                Navigator.of(context).pop();
+              }
+            },
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 显示百度语音 API Key 对话框
+  void _showBaiduSpeechApiKeyDialog(
+    BuildContext context,
+    WidgetRef ref,
+    SettingsState settings,
+  ) {
+    final controller = TextEditingController(text: settings.baiduSpeechApiKey ?? '');
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('设置 API Key'),
+        content: TextField(
+          controller: controller,
+          obscureText: true,
+          decoration: const InputDecoration(
+            labelText: 'API Key',
+            hintText: '从百度云控制台获取',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final value = controller.text.trim();
+              await ref
+                  .read(settingsProvider.notifier)
+                  .setBaiduSpeechApiKey(value.isEmpty ? null : value);
+              if (context.mounted) {
+                Navigator.of(context).pop();
+              }
+            },
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 显示百度语音 Secret Key 对话框
+  void _showBaiduSpeechSecretKeyDialog(
+    BuildContext context,
+    WidgetRef ref,
+    SettingsState settings,
+  ) {
+    final controller = TextEditingController(text: settings.baiduSpeechSecretKey ?? '');
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('设置 Secret Key'),
+        content: TextField(
+          controller: controller,
+          obscureText: true,
+          decoration: const InputDecoration(
+            labelText: 'Secret Key',
+            hintText: '从百度云控制台获取',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final value = controller.text.trim();
+              await ref
+                  .read(settingsProvider.notifier)
+                  .setBaiduSpeechSecretKey(value.isEmpty ? null : value);
               if (context.mounted) {
                 Navigator.of(context).pop();
               }

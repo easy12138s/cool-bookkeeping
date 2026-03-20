@@ -1,9 +1,7 @@
-import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:cool_bookkeeping/data/local/preferences.dart';
-import 'package:cool_bookkeeping/data/models/parsed_result.dart';
 import 'package:cool_bookkeeping/services/llm_service.dart';
 
 void main() {
@@ -134,7 +132,7 @@ void main() {
       final incomeCategories = ['工资', '奖金'];
 
       // 使用私有方法测试 prompt 构建
-      final prompt = llmService.parseTransactions(
+      llmService.parseTransactions(
         '测试',
         expenseCategories: expenseCategories,
         incomeCategories: incomeCategories,

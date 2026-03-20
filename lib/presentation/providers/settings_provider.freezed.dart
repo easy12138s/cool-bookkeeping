@@ -32,6 +32,15 @@ mixin _$SettingsState {
   /// 是否首次启动
   bool get isFirstLaunch => throw _privateConstructorUsedError;
 
+  /// 百度语音 App ID
+  String? get baiduSpeechAppId => throw _privateConstructorUsedError;
+
+  /// 百度语音 API Key
+  String? get baiduSpeechApiKey => throw _privateConstructorUsedError;
+
+  /// 百度语音 Secret Key
+  String? get baiduSpeechSecretKey => throw _privateConstructorUsedError;
+
   /// Create a copy of SettingsState
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -52,6 +61,9 @@ abstract class $SettingsStateCopyWith<$Res> {
     String? modelName,
     bool autoSaveEnabled,
     bool isFirstLaunch,
+    String? baiduSpeechAppId,
+    String? baiduSpeechApiKey,
+    String? baiduSpeechSecretKey,
   });
 }
 
@@ -75,6 +87,9 @@ class _$SettingsStateCopyWithImpl<$Res, $Val extends SettingsState>
     Object? modelName = freezed,
     Object? autoSaveEnabled = null,
     Object? isFirstLaunch = null,
+    Object? baiduSpeechAppId = freezed,
+    Object? baiduSpeechApiKey = freezed,
+    Object? baiduSpeechSecretKey = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -98,6 +113,18 @@ class _$SettingsStateCopyWithImpl<$Res, $Val extends SettingsState>
                 ? _value.isFirstLaunch
                 : isFirstLaunch // ignore: cast_nullable_to_non_nullable
                       as bool,
+            baiduSpeechAppId: freezed == baiduSpeechAppId
+                ? _value.baiduSpeechAppId
+                : baiduSpeechAppId // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            baiduSpeechApiKey: freezed == baiduSpeechApiKey
+                ? _value.baiduSpeechApiKey
+                : baiduSpeechApiKey // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            baiduSpeechSecretKey: freezed == baiduSpeechSecretKey
+                ? _value.baiduSpeechSecretKey
+                : baiduSpeechSecretKey // ignore: cast_nullable_to_non_nullable
+                      as String?,
           )
           as $Val,
     );
@@ -119,6 +146,9 @@ abstract class _$$SettingsStateImplCopyWith<$Res>
     String? modelName,
     bool autoSaveEnabled,
     bool isFirstLaunch,
+    String? baiduSpeechAppId,
+    String? baiduSpeechApiKey,
+    String? baiduSpeechSecretKey,
   });
 }
 
@@ -141,6 +171,9 @@ class __$$SettingsStateImplCopyWithImpl<$Res>
     Object? modelName = freezed,
     Object? autoSaveEnabled = null,
     Object? isFirstLaunch = null,
+    Object? baiduSpeechAppId = freezed,
+    Object? baiduSpeechApiKey = freezed,
+    Object? baiduSpeechSecretKey = freezed,
   }) {
     return _then(
       _$SettingsStateImpl(
@@ -164,6 +197,18 @@ class __$$SettingsStateImplCopyWithImpl<$Res>
             ? _value.isFirstLaunch
             : isFirstLaunch // ignore: cast_nullable_to_non_nullable
                   as bool,
+        baiduSpeechAppId: freezed == baiduSpeechAppId
+            ? _value.baiduSpeechAppId
+            : baiduSpeechAppId // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        baiduSpeechApiKey: freezed == baiduSpeechApiKey
+            ? _value.baiduSpeechApiKey
+            : baiduSpeechApiKey // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        baiduSpeechSecretKey: freezed == baiduSpeechSecretKey
+            ? _value.baiduSpeechSecretKey
+            : baiduSpeechSecretKey // ignore: cast_nullable_to_non_nullable
+                  as String?,
       ),
     );
   }
@@ -171,14 +216,17 @@ class __$$SettingsStateImplCopyWithImpl<$Res>
 
 /// @nodoc
 
-class _$SettingsStateImpl implements _SettingsState {
+class _$SettingsStateImpl extends _SettingsState {
   const _$SettingsStateImpl({
     this.apiKey,
     this.apiBaseUrl,
     this.modelName,
     this.autoSaveEnabled = false,
     this.isFirstLaunch = true,
-  });
+    this.baiduSpeechAppId,
+    this.baiduSpeechApiKey,
+    this.baiduSpeechSecretKey,
+  }) : super._();
 
   /// API 密钥
   @override
@@ -202,9 +250,21 @@ class _$SettingsStateImpl implements _SettingsState {
   @JsonKey()
   final bool isFirstLaunch;
 
+  /// 百度语音 App ID
+  @override
+  final String? baiduSpeechAppId;
+
+  /// 百度语音 API Key
+  @override
+  final String? baiduSpeechApiKey;
+
+  /// 百度语音 Secret Key
+  @override
+  final String? baiduSpeechSecretKey;
+
   @override
   String toString() {
-    return 'SettingsState(apiKey: $apiKey, apiBaseUrl: $apiBaseUrl, modelName: $modelName, autoSaveEnabled: $autoSaveEnabled, isFirstLaunch: $isFirstLaunch)';
+    return 'SettingsState(apiKey: $apiKey, apiBaseUrl: $apiBaseUrl, modelName: $modelName, autoSaveEnabled: $autoSaveEnabled, isFirstLaunch: $isFirstLaunch, baiduSpeechAppId: $baiduSpeechAppId, baiduSpeechApiKey: $baiduSpeechApiKey, baiduSpeechSecretKey: $baiduSpeechSecretKey)';
   }
 
   @override
@@ -220,7 +280,13 @@ class _$SettingsStateImpl implements _SettingsState {
             (identical(other.autoSaveEnabled, autoSaveEnabled) ||
                 other.autoSaveEnabled == autoSaveEnabled) &&
             (identical(other.isFirstLaunch, isFirstLaunch) ||
-                other.isFirstLaunch == isFirstLaunch));
+                other.isFirstLaunch == isFirstLaunch) &&
+            (identical(other.baiduSpeechAppId, baiduSpeechAppId) ||
+                other.baiduSpeechAppId == baiduSpeechAppId) &&
+            (identical(other.baiduSpeechApiKey, baiduSpeechApiKey) ||
+                other.baiduSpeechApiKey == baiduSpeechApiKey) &&
+            (identical(other.baiduSpeechSecretKey, baiduSpeechSecretKey) ||
+                other.baiduSpeechSecretKey == baiduSpeechSecretKey));
   }
 
   @override
@@ -231,6 +297,9 @@ class _$SettingsStateImpl implements _SettingsState {
     modelName,
     autoSaveEnabled,
     isFirstLaunch,
+    baiduSpeechAppId,
+    baiduSpeechApiKey,
+    baiduSpeechSecretKey,
   );
 
   /// Create a copy of SettingsState
@@ -242,14 +311,18 @@ class _$SettingsStateImpl implements _SettingsState {
       __$$SettingsStateImplCopyWithImpl<_$SettingsStateImpl>(this, _$identity);
 }
 
-abstract class _SettingsState implements SettingsState {
+abstract class _SettingsState extends SettingsState {
   const factory _SettingsState({
     final String? apiKey,
     final String? apiBaseUrl,
     final String? modelName,
     final bool autoSaveEnabled,
     final bool isFirstLaunch,
+    final String? baiduSpeechAppId,
+    final String? baiduSpeechApiKey,
+    final String? baiduSpeechSecretKey,
   }) = _$SettingsStateImpl;
+  const _SettingsState._() : super._();
 
   /// API 密钥
   @override
@@ -270,6 +343,18 @@ abstract class _SettingsState implements SettingsState {
   /// 是否首次启动
   @override
   bool get isFirstLaunch;
+
+  /// 百度语音 App ID
+  @override
+  String? get baiduSpeechAppId;
+
+  /// 百度语音 API Key
+  @override
+  String? get baiduSpeechApiKey;
+
+  /// 百度语音 Secret Key
+  @override
+  String? get baiduSpeechSecretKey;
 
   /// Create a copy of SettingsState
   /// with the given fields replaced by the non-null parameter values.

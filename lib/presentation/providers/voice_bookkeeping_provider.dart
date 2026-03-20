@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../data/models/parsed_result.dart';
 import '../../data/models/record_model.dart';
+import '../../services/baidu_speech_service.dart';
 import '../../services/services.dart' as services;
 import 'providers.dart';
 import 'categories_provider.dart';
@@ -62,14 +63,17 @@ class VoiceBookkeepingController {
   final Ref _ref;
   final services.SpeechService _speechService;
   final services.LlmService _llmService;
+  final BaiduSpeechService? _baiduSpeechService;
 
   VoiceBookkeepingController({
     required Ref ref,
     required services.SpeechService speechService,
     required services.LlmService llmService,
+    BaiduSpeechService? baiduSpeechService,
   })  : _ref = ref,
         _speechService = speechService,
-        _llmService = llmService;
+        _llmService = llmService,
+        _baiduSpeechService = baiduSpeechService;
 
   bool _isRecording = false;
   StreamSubscription? _stateSubscription;
@@ -104,7 +108,36 @@ class VoiceBookkeepingController {
       _isRecording = true;
       _ref.read(speechStateProvider.notifier).state = SpeechState.processing;
 
-      // 尝试初始化语音识别，失败时重试一次
+      // 检查是否使用百度语音
+      final useBaidu = _baiduSpeechService != null && _baiduSpeechService.isConfigured;
+
+      if (kDebugMode) {
+        print('[VoiceBookkeeping] Using ${useBaidu ? 'Baidu' : 'Google'} speech service');
+      }
+
+      if (useBaidu) {
+        // 使用百度语音识别
+        final success = await _baiduSpeechService.startRecording();
+        if (!success) {
+          _ref.read(voiceErrorMessageProvider.notifier).state =
+              '无法开始录音，请检查麦克风权限';
+          _ref.read(speechStateProvider.notifier).state = SpeechState.error;
+          _isRecording = false;
+          return;
+        }
+
+        // 重置状态
+        _ref.read(recognizedTextProvider.notifier).state = '';
+        _ref.read(parsedResultsProvider.notifier).state = [];
+        _ref.read(recordingStartTimeProvider.notifier).state = DateTime.now();
+        _ref.read(showBatchConfirmationTriggerProvider.notifier).state = false;
+        _ref.read(batchSaveFailedRecordsProvider.notifier).state = [];
+
+        _ref.read(speechStateProvider.notifier).state = SpeechState.listening;
+        return;
+      }
+
+      // 使用 Google 语音识别
       bool initialized = await _speechService.initialize();
       
       // 如果第一次初始化失败，等待一段时间后重试
@@ -211,10 +244,57 @@ class VoiceBookkeepingController {
     if (!_isRecording) return;
 
     try {
-      await _speechService.stopListening();
-      _ref.read(recordingStartTimeProvider.notifier).state = null;
-      // 保持 processing 状态，等待解析完成
-      _ref.read(speechStateProvider.notifier).state = SpeechState.processing;
+      // 检查是否使用百度语音
+      final useBaidu = _baiduSpeechService != null && _baiduSpeechService.isConfigured;
+
+      if (useBaidu) {
+        // 使用百度语音识别
+        final result = await _baiduSpeechService.stopRecordingAndRecognize();
+        _ref.read(recordingStartTimeProvider.notifier).state = null;
+        
+        if (result.success && result.text != null) {
+          _ref.read(recognizedTextProvider.notifier).state = result.text!;
+          _ref.read(speechStateProvider.notifier).state = SpeechState.processing;
+          
+          if (kDebugMode) {
+            print('[VoiceBookkeeping] Baidu recognition result: ${result.text}');
+          }
+        } else {
+          // 识别失败
+          String errorMsg = '语音识别失败';
+          switch (result.errorType) {
+            case BaiduSpeechErrorType.notConfigured:
+              errorMsg = '百度语音识别未配置，请在设置中配置';
+              break;
+            case BaiduSpeechErrorType.networkError:
+              errorMsg = '网络错误，请检查网络连接';
+              break;
+            case BaiduSpeechErrorType.authError:
+              errorMsg = '百度语音认证失败，请检查 API Key';
+              break;
+            case BaiduSpeechErrorType.permissionDenied:
+              errorMsg = '麦克风权限被拒绝';
+              break;
+            case BaiduSpeechErrorType.recordingError:
+              errorMsg = result.errorMessage ?? '录音失败';
+              break;
+            case BaiduSpeechErrorType.recognitionError:
+              errorMsg = result.errorMessage ?? '识别失败';
+              break;
+            default:
+              errorMsg = result.errorMessage ?? '语音识别失败';
+          }
+          
+          _ref.read(voiceErrorMessageProvider.notifier).state = errorMsg;
+          _ref.read(speechStateProvider.notifier).state = SpeechState.error;
+        }
+      } else {
+        // 使用 Google 语音识别
+        await _speechService.stopListening();
+        _ref.read(recordingStartTimeProvider.notifier).state = null;
+        // 保持 processing 状态，等待解析完成
+        _ref.read(speechStateProvider.notifier).state = SpeechState.processing;
+      }
     } catch (e) {
       _ref.read(voiceErrorMessageProvider.notifier).state =
           '停止录音失败: $e';
@@ -440,11 +520,13 @@ class BatchSaveResult {
 final voiceBookkeepingControllerProvider = Provider<VoiceBookkeepingController>((ref) {
   final speechService = ref.watch(speechServiceProvider);
   final llmService = ref.watch(llmServiceProvider);
+  final baiduSpeechService = ref.watch(baiduSpeechServiceProvider);
 
   final controller = VoiceBookkeepingController(
     ref: ref,
     speechService: speechService,
     llmService: llmService,
+    baiduSpeechService: baiduSpeechService,
   );
   
   // 确保控制器正确释放

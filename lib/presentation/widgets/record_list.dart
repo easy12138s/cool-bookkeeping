@@ -143,7 +143,6 @@ class RecordList extends ConsumerWidget {
     List<RecordModel> records,
     List<CategoryModel> categories,
   ) {
-    final theme = Theme.of(context);
     final isToday = _isToday(date);
     final isYesterday = _isYesterday(date);
 
