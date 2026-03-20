@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 
 import '../database.dart';
 import '../tables/records_table.dart';
@@ -11,6 +12,9 @@ class RecordsDao extends DatabaseAccessor<AppDatabase> with _$RecordsDaoMixin {
 
   /// 获取所有记录，按创建时间倒序排列
   Future<List<Record>> getAllRecords() {
+    if (kDebugMode) {
+      print('[RecordsDao] getAllRecords called');
+    }
     return (select(records)
           ..orderBy([(r) => OrderingTerm.desc(r.createdAt)]))
         .get();
@@ -38,6 +42,9 @@ class RecordsDao extends DatabaseAccessor<AppDatabase> with _$RecordsDaoMixin {
 
   /// 插入记录
   Future<int> insertRecord(RecordsCompanion record) {
+    if (kDebugMode) {
+      print('[RecordsDao] insertRecord called with: ${record.toString()}');
+    }
     return into(records).insert(record);
   }
 

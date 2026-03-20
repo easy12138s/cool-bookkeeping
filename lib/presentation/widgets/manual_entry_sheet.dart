@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/date_time_picker_theme.dart';
 import '../../core/theme/responsive.dart';
 import '../../data/models/record_model.dart';
 import '../providers/categories_provider.dart';
@@ -47,17 +48,31 @@ class _ManualEntrySheetState extends ConsumerState<ManualEntrySheet> {
   }
 
   Future<void> _selectDateTime() async {
+    // 美化的日期选择器
     final date = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 1)),
+      builder: (context, child) {
+        return Theme(
+          data: DateTimePickerTheme.datePickerTheme,
+          child: child!,
+        );
+      },
     );
 
     if (date != null && mounted) {
+      // 美化的时间选择器
       final time = await showTimePicker(
         context: context,
         initialTime: TimeOfDay.fromDateTime(_selectedDate),
+        builder: (context, child) {
+          return Theme(
+            data: DateTimePickerTheme.timePickerTheme,
+            child: child!,
+          );
+        },
       );
 
       if (time != null && mounted) {
@@ -358,15 +373,42 @@ class _ManualEntrySheetState extends ConsumerState<ManualEntrySheet> {
                     ),
                     SizedBox(height: spacingMd),
 
+                    // 时间选择（美化版）
                     InkWell(
                       onTap: _selectDateTime,
+                      borderRadius: BorderRadius.circular(8),
                       child: InputDecorator(
                         decoration: InputDecoration(
                           labelText: '时间',
-                          border: OutlineInputBorder(),
-                          suffixIcon: Icon(Icons.calendar_today),
+                          labelStyle: AppTextStyles.getLabelMedium(context),
+                          prefixIcon: Icon(
+                            Icons.calendar_today,
+                            color: AppColors.brandPrimary,
+                            size: 20,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: AppColors.divider),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(
+                              color: AppColors.brandPrimary,
+                              width: 2,
+                            ),
+                          ),
+                          filled: true,
+                          fillColor: AppColors.background,
                         ),
-                        child: Text(_formatDateTime(_selectedDate), style: AppTextStyles.getBodyMedium(context)),
+                        child: Text(
+                          _formatDateTime(_selectedDate),
+                          style: AppTextStyles.getBodyLarge(context).copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
                     ),
                     SizedBox(height: spacingMd),

@@ -22,6 +22,9 @@ class RecordsNotifier extends StateNotifier<RecordsState> {
   /// 加载所有记录
   /// 从 Repository 获取数据并更新状态
   Future<void> loadRecords() async {
+    if (kDebugMode) {
+      print('[RecordsNotifier] loadRecords started');
+    }
     state = const AsyncValue.loading();
     try {
       final List<RecordModel> records;
@@ -30,8 +33,17 @@ class RecordsNotifier extends StateNotifier<RecordsState> {
       } else {
         records = await (_repository as RecordsRepository).getAllRecords();
       }
+      if (kDebugMode) {
+        print('[RecordsNotifier] loadRecords completed, records count: ${records.length}');
+        for (final r in records) {
+          print('  - id: ${r.id}, type: ${r.type}, amount: ${r.amount}, categoryId: ${r.categoryId}');
+        }
+      }
       state = AsyncValue.data(records);
     } catch (error, stackTrace) {
+      if (kDebugMode) {
+        print('[RecordsNotifier] loadRecords error: $error');
+      }
       state = AsyncValue.error(error, stackTrace);
     }
   }
@@ -39,6 +51,9 @@ class RecordsNotifier extends StateNotifier<RecordsState> {
   /// 添加新记录
   /// [record] 要添加的记录模型
   Future<void> addRecord(RecordModel record) async {
+    if (kDebugMode) {
+      print('[RecordsNotifier] addRecord called: id=${record.id}, type=${record.type}, amount=${record.amount}');
+    }
     try {
       if (kIsWeb) {
         await (_repository as WebRecordsRepository).insertRecord(record);
@@ -47,6 +62,9 @@ class RecordsNotifier extends StateNotifier<RecordsState> {
       }
       await loadRecords();
     } catch (error, stackTrace) {
+      if (kDebugMode) {
+        print('[RecordsNotifier] addRecord error: $error');
+      }
       state = AsyncValue.error(error, stackTrace);
     }
   }

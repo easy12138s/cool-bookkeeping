@@ -64,6 +64,9 @@ class SpeechService {
   /// 最后的错误原因
   SpeechInitErrorCause _lastErrorCause = SpeechInitErrorCause.success;
 
+  /// 是否已初始化
+  bool get isInitialized => _isInitialized;
+
   /// 获取最后的错误原因
   SpeechInitErrorCause get lastErrorCause => _lastErrorCause;
 
@@ -78,10 +81,14 @@ class SpeechService {
     try {
       _lastErrorCause = SpeechInitErrorCause.unknown;
 
+      if (kDebugMode) {
+        print('[SpeechService] Initializing speech recognition...');
+      }
+
       _isInitialized = await _speechToText.initialize(
         onError: (error) {
           if (kDebugMode) {
-            print('Speech initialize onError: $error');
+            print('[SpeechService] initialize onError: $error');
           }
 
           final errorStr = error.toString().toLowerCase();
@@ -90,6 +97,11 @@ class SpeechService {
               errorStr.contains('denied') ||
               errorStr.contains('not permitted')) {
             _lastErrorCause = SpeechInitErrorCause.permissionDenied;
+          } else if (errorStr.contains('network') ||
+              errorStr.contains('timeout') ||
+              errorStr.contains('connection')) {
+            // 网络问题
+            _lastErrorCause = SpeechInitErrorCause.serviceNotAvailable;
           } else if (errorStr.contains('not available') ||
               errorStr.contains('unavailable') ||
               errorStr.contains('not listening')) {
@@ -121,21 +133,37 @@ class SpeechService {
 
       if (_isInitialized) {
         _lastErrorCause = SpeechInitErrorCause.success;
+        if (kDebugMode) {
+          print('[SpeechService] Initialization successful');
+        }
       } else if (_lastErrorCause == SpeechInitErrorCause.unknown) {
-        final available = await _speechToText.locales();
-        if (available == null || available.isEmpty) {
-          _lastErrorCause = SpeechInitErrorCause.deviceNotSupported;
+        // 进一步诊断问题
+        try {
+          final available = await _speechToText.locales();
+          if (kDebugMode) {
+            print('[SpeechService] Available locales: $available');
+          }
+          if (available == null || available.isEmpty) {
+            _lastErrorCause = SpeechInitErrorCause.deviceNotSupported;
+            if (kDebugMode) {
+              print('[SpeechService] No locales available - device not supported');
+            }
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('[SpeechService] Error checking locales: $e');
+          }
         }
       }
 
       if (kDebugMode) {
-        print('Speech initialize result: $_isInitialized, error cause: $_lastErrorCause');
+        print('[SpeechService] Initialization result: $_isInitialized, error cause: $_lastErrorCause');
       }
 
       return _isInitialized;
     } catch (e) {
       if (kDebugMode) {
-        print('Speech initialization error: $e');
+        print('[SpeechService] Initialization error: $e');
       }
       _lastErrorCause = SpeechInitErrorCause.unknown;
       _stateController.add(SpeechState.error);

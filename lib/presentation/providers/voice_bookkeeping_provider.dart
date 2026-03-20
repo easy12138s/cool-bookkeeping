@@ -104,10 +104,27 @@ class VoiceBookkeepingController {
       _isRecording = true;
       _ref.read(speechStateProvider.notifier).state = SpeechState.processing;
 
-      final initialized = await _speechService.initialize();
+      // 尝试初始化语音识别，失败时重试一次
+      bool initialized = await _speechService.initialize();
+      
+      // 如果第一次初始化失败，等待一段时间后重试
+      if (!initialized) {
+        if (kDebugMode) {
+          print('[VoiceBookkeeping] First initialization failed, retrying after 500ms...');
+        }
+        await Future.delayed(const Duration(milliseconds: 500));
+        initialized = await _speechService.initialize();
+      }
+
       if (!initialized) {
         final errorCause = _speechService.lastErrorCause;
         String errorMessage;
+
+        if (kDebugMode) {
+          print('[VoiceBookkeeping] Initialization failed!');
+          print('[VoiceBookkeeping] Error cause: $errorCause');
+          print('[VoiceBookkeeping] _speechService.isInitialized: ${_speechService.isInitialized}');
+        }
 
         switch (errorCause) {
           case services.SpeechInitErrorCause.permissionDenied:
@@ -117,17 +134,25 @@ class VoiceBookkeepingController {
             errorMessage = '您的设备不支持语音识别功能';
             break;
           case services.SpeechInitErrorCause.serviceNotAvailable:
-            errorMessage = '语音识别服务暂不可用，请稍后重试';
+            errorMessage = '语音识别服务暂不可用，请检查网络连接后重试\n（语音识别需要连接 Google 服务）';
             break;
           case services.SpeechInitErrorCause.unknown:
           default:
             errorMessage = '语音识别初始化失败，请重试';
         }
 
+        if (kDebugMode) {
+          print('[VoiceBookkeeping] Initialization failed: $errorMessage, cause: $errorCause');
+        }
+
         _ref.read(voiceErrorMessageProvider.notifier).state = errorMessage;
         _ref.read(speechStateProvider.notifier).state = SpeechState.error;
         _isRecording = false;
         return;
+      }
+
+      if (kDebugMode) {
+        print('[VoiceBookkeeping] Initialization successful, starting to listen...');
       }
 
       // 重置状态

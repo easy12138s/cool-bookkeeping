@@ -75,9 +75,20 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
     if (_isStarting) return;
     _isStarting = true;
 
+    if (kDebugMode) {
+      print('[VoiceButtonNav] Starting recording...');
+    }
+
     // 请求麦克风权限
     final hasPermission = await PermissionUtils.handleMicrophonePermission(context);
+    if (kDebugMode) {
+      print('[VoiceButtonNav] Permission result: $hasPermission');
+    }
+    
     if (!hasPermission) {
+      if (kDebugMode) {
+        print('[VoiceButtonNav] Permission denied, aborting');
+      }
       _isStarting = false;
       return;
     }
@@ -87,10 +98,16 @@ class _VoiceButtonNavState extends ConsumerState<VoiceButtonNav>
 
     // 显示语音识别底部弹窗
     if (mounted) {
+      if (kDebugMode) {
+        print('[VoiceButtonNav] Showing voice recognition sheet');
+      }
       showVoiceRecognitionSheet(context);
     }
 
     final controller = ref.read(voiceBookkeepingControllerProvider);
+    if (kDebugMode) {
+      print('[VoiceButtonNav] Calling startRecording');
+    }
     await controller.startRecording();
 
     if (mounted) {

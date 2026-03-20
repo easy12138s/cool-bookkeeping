@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -150,13 +151,22 @@ class PermissionUtils {
 
     // 如果已经授权，直接返回 true
     if (status.isGranted) {
+      if (kDebugMode) {
+        print('[PermissionUtils] Already granted');
+      }
       return true;
     }
 
     // 如果权限被拒绝（不是永久拒绝），请求权限
     if (status.isDenied) {
+      if (kDebugMode) {
+        print('[PermissionUtils] Requesting permission...');
+      }
       status = await requestMicrophonePermission();
       if (status.isGranted) {
+        if (kDebugMode) {
+          print('[PermissionUtils] Granted after request');
+        }
         return true;
       }
     }
@@ -165,17 +175,32 @@ class PermissionUtils {
     if (status.isPermanentlyDenied || status.isRestricted) {
       final openedSettings = await showPermissionDialog(context);
       if (openedSettings && context.mounted) {
-        // 用户打开了设置，等待用户返回后重新检查权限状态
-        // 使用延迟确保用户已经从设置页返回
-        await Future.delayed(const Duration(milliseconds: 500));
-        status = await checkMicrophonePermission();
+        // 用户打开了设置，等待用户返回后重新请求权限
+        // OPPO ColorOS 需要更长的延迟来确保系统完全刷新权限状态
+        if (kDebugMode) {
+          print('[PermissionUtils] Waiting for settings return...');
+        }
+        await Future.delayed(const Duration(milliseconds: 1500));
+        
+        // 使用 request 而不是 check，强制系统重新检测权限状态
+        status = await requestMicrophonePermission();
+        if (kDebugMode) {
+          print('[PermissionUtils] Status after settings: $status');
+        }
+        
         if (status.isGranted) {
+          if (kDebugMode) {
+            print('[PermissionUtils] Granted after settings');
+          }
           return true;
         }
       }
     }
 
     // 权限未获得
+    if (kDebugMode) {
+      print('[PermissionUtils] Permission denied, showing snackbar');
+    }
     if (context.mounted) {
       showPermissionDeniedSnackBar(context);
     }
@@ -276,14 +301,19 @@ class PermissionUtils {
                       onPressed: () async {
                         Navigator.of(context).pop();
                         // 请求权限
-                        final status = await requestMicrophonePermission();
+                        var status = await requestMicrophonePermission();
                         if (!status.isGranted && context.mounted) {
                           // 如果用户拒绝，显示引导去设置的弹窗
                           final openedSettings = await showPermissionDialog(context);
                           if (openedSettings && context.mounted) {
-                            // 等待用户从设置页返回后重新检查权限
+                            // 等待用户从设置页返回后重新请求权限
+                            // 使用 request 而不是 check，强制系统重新检测权限状态
                             await Future.delayed(const Duration(milliseconds: 500));
-                            await checkMicrophonePermission();
+                            status = await requestMicrophonePermission();
+                            if (!status.isGranted && context.mounted) {
+                              // 权限仍然未获得，显示提示
+                              showPermissionDeniedSnackBar(context);
+                            }
                           }
                         }
                       },

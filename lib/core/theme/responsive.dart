@@ -96,8 +96,8 @@ class ResponsiveText {
   static double getResponsiveFontSize(
     BuildContext context, {
     required double baseSize,
-    double minSize = 12.0,
-    double maxSize = 32.0,
+    double minSize = 10.0,
+    double maxSize = 24.0,
     bool scaleWithTextScaleFactor = true,
   }) {
     final textScaleFactor = scaleWithTextScaleFactor 
@@ -114,14 +114,14 @@ class ResponsiveText {
     
     double screenSizeFactor = 1.0;
     if (screenDiagonal >= 800) {
-      screenSizeFactor = 1.1; // 大屏稍微放大
+      screenSizeFactor = 1.05; // 大屏稍微放大（降低系数）
     } else if (screenDiagonal <= 500) {
-      screenSizeFactor = 0.9; // 小屏稍微缩小
+      screenSizeFactor = 0.95; // 小屏稍微缩小（降低系数）
     }
     
     scaledSize *= screenSizeFactor;
     
-    // 限制在最小和最大范围内
+    // 限制在最小和最大范围内（缩小了 maxSize）
     return scaledSize.clamp(minSize, maxSize);
   }
   

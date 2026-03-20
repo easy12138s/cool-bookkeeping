@@ -19,7 +19,7 @@ class WeeklySummaryCard extends ConsumerWidget {
     return summaryAsync.when(
       data: (summary) => _buildCard(context, summary),
       loading: () => _buildLoadingCard(context),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (error, _) => _buildErrorCard(context, error.toString()),
     );
   }
 
@@ -100,11 +100,17 @@ class WeeklySummaryCard extends ConsumerWidget {
             ),
           ),
           AppSpacing.height(context, 4),
-          Text(
-            '¥${summary.balance.toStringAsFixed(2)}',
-            style: AppTextStyles.getDisplayMedium(context).copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
+          // 使用更小的字体显示结余金额，防止溢出
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              '¥${summary.balance.toStringAsFixed(2)}',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 22, // 固定小字体，配合 FittedBox 自动缩放
+              ),
             ),
           ),
           AppSpacing.height(context, 20),
@@ -191,11 +197,17 @@ class WeeklySummaryCard extends ConsumerWidget {
               ),
             ),
             AppSpacing.height(context, 2),
-            Text(
-              '¥${amount.toStringAsFixed(2)}',
-              style: AppTextStyles.getBodyLarge(context).copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
+            // 使用更小的字体显示收入/支出金额，防止溢出
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '¥${amount.toStringAsFixed(2)}',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16, // 固定小字体，配合 FittedBox 自动缩放
+                ),
               ),
             ),
           ],
@@ -215,6 +227,34 @@ class WeeklySummaryCard extends ConsumerWidget {
       ),
       child: const Center(
         child: CircularProgressIndicator(),
+      ),
+    );
+  }
+
+  /// 构建错误状态卡片
+  Widget _buildErrorCard(BuildContext context, String error) {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.error.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline, color: AppColors.error, size: 32),
+            AppSpacing.height(context, 8),
+            Text(
+              '加载失败',
+              style: AppTextStyles.getTitleMedium(context).copyWith(
+                color: AppColors.error,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
